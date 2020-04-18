@@ -26,26 +26,26 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -76,6 +76,9 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -87,6 +90,9 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -100,6 +106,9 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -115,6 +124,9 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,6 +135,39 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="inc\Math\Colour.h" />
+    <ClInclude Include="inc\Meta\Meta.h" />
+    <ClInclude Include="inc\Meta\MetaClass.h" />
+    <ClInclude Include="inc\Meta\MetaDeclare.h" />
+    <ClInclude Include="inc\Meta\MetaIO.h" />
+    <ClInclude Include="inc\Meta\MetaJsonIO.h" />
+    <ClInclude Include="inc\Meta\MetaType.h" />
+    <ClInclude Include="inc\Meta\MetaTypeDetail.h" />
+    <ClInclude Include="inc\stdx\algorithm.h" />
+    <ClInclude Include="inc\stdx\array2.h" />
+    <ClInclude Include="inc\stdx\assert.h" />
+    <ClInclude Include="inc\stdx\basic_iterator.h" />
+    <ClInclude Include="inc\stdx\bit.h" />
+    <ClInclude Include="inc\stdx\container.h" />
+    <ClInclude Include="inc\stdx\ctype.h" />
+    <ClInclude Include="inc\stdx\enum.h" />
+    <ClInclude Include="inc\stdx\enum_iterator.h" />
+    <ClInclude Include="inc\stdx\fixed_string.h" />
+    <ClInclude Include="inc\stdx\flat_map.h" />
+    <ClInclude Include="inc\stdx\flat_set.h" />
+    <ClInclude Include="inc\stdx\format.h" />
+    <ClInclude Include="inc\stdx\int.h" />
+    <ClInclude Include="inc\stdx\math.h" />
+    <ClInclude Include="inc\stdx\memory.h" />
+    <ClInclude Include="inc\stdx\reflection.h" />
+    <ClInclude Include="inc\stdx\simple_map.h" />
+    <ClInclude Include="inc\stdx\span.h" />
+    <ClInclude Include="inc\stdx\string.h" />
+    <ClInclude Include="inc\stdx\type_traits.h" />
+    <ClInclude Include="inc\stdx\vector_s.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Meta\MetaType.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

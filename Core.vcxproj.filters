@@ -1,17 +1,120 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <ClInclude Include="inc\Meta\MetaClass.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaDeclare.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaIO.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaJsonIO.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\Meta.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaType.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaTypeDetail.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\algorithm.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\array2.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\assert.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\basic_iterator.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\bit.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\container.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\ctype.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\enum.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\enum_iterator.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\fixed_string.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\flat_map.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\flat_set.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\format.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\int.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\math.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\memory.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\reflection.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\simple_map.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\span.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\string.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\type_traits.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\vector_s.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Colour.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Meta\MetaType.cpp">
+      <Filter>src\Meta</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{62336878-7788-4b78-bad6-50b2db8fa55e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="src">
+      <UniqueIdentifier>{24f3513f-7be3-42f9-855e-779cfe805515}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="inc\Meta">
+      <UniqueIdentifier>{296bcb05-6f16-4745-9afc-d57104f124ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Meta">
+      <UniqueIdentifier>{a11ba262-5349-41bf-b226-473760709443}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\stdx">
+      <UniqueIdentifier>{cf678387-25bf-48fb-9ef2-4e0156983da4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\Math">
+      <UniqueIdentifier>{6186f04f-5b31-41e9-b203-6515a698220a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
