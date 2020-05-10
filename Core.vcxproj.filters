@@ -91,6 +91,18 @@
     <ClInclude Include="inc\Math\Colour.h">
       <Filter>inc\Math</Filter>
     </ClInclude>
+    <ClInclude Include="inc\stdx\fnvhash.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\basic_int.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\EventSink\EventSink.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\EventSink\Vector2.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaType.cpp">

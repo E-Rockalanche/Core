@@ -1,7 +1,8 @@
 #ifndef STDX_BIT_HPP
 #define STDX_BIT_HPP
 
-#include <stdx/type_traits.hpp>
+#include <stdx/type_traits.h>
+#include <cstdint>
 #include <limits>
 
 namespace stdx
@@ -13,6 +14,7 @@ namespace detail
 	struct bit_cast_union
 	{
 		constexpr bit_cast_union( const From& src ) noexcept : from{ src } {}
+
 		union
 		{
 			To to;

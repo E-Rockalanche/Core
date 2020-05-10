@@ -58,7 +58,7 @@ void MetaPrimitive<T>::write( MetaWriter& writer, const void* data ) const
 	{
 		writer.writeFloat( static_cast<double>( value ) );
 	}
-	else if constexpr ( std::is_class_v<T> )
+	else if constexpr ( std::is_convertible_v<T, std::string_view> )
 	{
 		// assume convertible to string_view
 		writer.writeString( value );
@@ -104,7 +104,7 @@ void MetaPrimitive<T>::read( MetaReader& reader, void* data ) const
 
 		value = static_cast<T>( result );
 	}
-	else if constexpr ( std::is_class_v<T> )
+	else if constexpr ( std::is_convertible_v<std::string_view, T> )
 	{
 		// assume assignable from string_view
 		value = reader.readString();
@@ -117,26 +117,42 @@ void MetaPrimitive<T>::read( MetaReader& reader, void* data ) const
 }
 
 template <>
-inline void MetaPrimitive<bool>::write( MetaWriter& writer, const void* data ) const
+void MetaPrimitive<bool>::write( MetaWriter& writer, const void* data ) const
 {
 	writer.writeBool( *static_cast<const bool*>( data ) );
 }
 
 template <>
-inline void MetaPrimitive<bool>::read( MetaReader& reader, void* data ) const
+void MetaPrimitive<bool>::read( MetaReader& reader, void* data ) const
 {
 	*static_cast<bool*>( data ) = reader.readBool();
 }
 
 template <>
-inline void MetaPrimitive<Math::Colour>::write( MetaWriter& writer, const void* data ) const
+void MetaPrimitive<char>::write( MetaWriter& writer, const void* data ) const
+{
+	writer.writeString( std::string_view( static_cast<const char*>( data ), 1 ) );
+}
+
+template <>
+void MetaPrimitive<char>::read( MetaReader& reader, void* data ) const
+{
+	auto str = reader.readString();
+	if ( str.size() != 1 )
+		throw MetaIOException( stdx::format( "Invalid char: {}", str ) );
+
+	*static_cast<char*>( data ) = str.front();
+}
+
+template <>
+void MetaPrimitive<Math::Colour>::write( MetaWriter& writer, const void* data ) const
 {
 	const Math::Colour& colour = *static_cast<const Math::Colour*>( data );
 	writer.writeInt( static_cast<uint32_t>( colour ), 16 );
 }
 
 template <>
-inline void MetaPrimitive<Math::Colour>::read( MetaReader& reader, void* data ) const
+void MetaPrimitive<Math::Colour>::read( MetaReader& reader, void* data ) const
 {
 	const auto code = reader.readInt();
 	if ( code < 0 || code > 0xffffffff )
@@ -146,7 +162,7 @@ inline void MetaPrimitive<Math::Colour>::read( MetaReader& reader, void* data ) 
 }
 
 #define DECLARE_META_PRIMITIVE( type ) \
-template<> inline const MetaType* MetaTypeResolver<type>::get() { \
+template<> const MetaType* MetaTypeResolver<type>::get() { \
 	static const MetaPrimitive<type> s_metaType; \
 	return &s_metaType; \
 }

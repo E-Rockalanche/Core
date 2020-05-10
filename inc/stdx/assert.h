@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef SHIPPING
+#ifdef _DEBUG
 
 #include <cstdio>
 
@@ -46,9 +46,15 @@
 	}	\
 } while( false )
 
+#define dbVerify( condition ) dbAssert( condition )
+
+#define dbVerifyMessage( condition, ... ) dbAssertMessage( condition, __VA_ARGS__ )
+
+// safe to use in constexpr function
 #define dbExpects( condition )	\
 	( ( condition ) ? (void)0 : (void)[]{ dbAssertFail( #condition ); } )
 
+// safe to use in constexpr function
 #define dbEnsures( condition )	\
 	( ( condition ) ? (void)0 : (void)[]{ dbAssertFail( #condition ); } )
 
@@ -64,5 +70,7 @@
 #define dbAssertMessage( condition, ... )
 #define dbExpects( condition )
 #define dbEnsures( condition )
+#define dbVerify( condition ) ( condition )
+#define dbVerifyMessage( condition, ... ) ( condition )
 
 #endif

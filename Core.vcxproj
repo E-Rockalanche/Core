@@ -135,6 +135,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="inc\EventSink\EventSink.h" />
+    <ClInclude Include="inc\EventSink\Vector2.h" />
     <ClInclude Include="inc\Math\Colour.h" />
     <ClInclude Include="inc\Meta\Meta.h" />
     <ClInclude Include="inc\Meta\MetaClass.h" />
@@ -155,10 +157,12 @@
     <ClInclude Include="inc\stdx\fixed_string.h" />
     <ClInclude Include="inc\stdx\flat_map.h" />
     <ClInclude Include="inc\stdx\flat_set.h" />
+    <ClInclude Include="inc\stdx\fnvhash.h" />
     <ClInclude Include="inc\stdx\format.h" />
     <ClInclude Include="inc\stdx\int.h" />
     <ClInclude Include="inc\stdx\math.h" />
     <ClInclude Include="inc\stdx\memory.h" />
+    <ClInclude Include="inc\stdx\basic_int.h" />
     <ClInclude Include="inc\stdx\reflection.h" />
     <ClInclude Include="inc\stdx\simple_map.h" />
     <ClInclude Include="inc\stdx\span.h" />

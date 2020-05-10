@@ -1,7 +1,7 @@
 #ifndef STDX_ENUM_ITERATOR_HPP
 #define STDX_ENUM_ITERATOR_HPP
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include <type_traits>
 
 template <typename T>

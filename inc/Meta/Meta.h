@@ -10,7 +10,8 @@ template<> const MetaType* MetaTypeResolver<ClassType>::get() { \
 	using LocalClassType = ClassType; \
 	static const  MetaClass s_metaType( \
 		stdx::reflection::type_name_v<ClassType>.c_str(), \
-		std::is_polymorphic_v<ClassType>,
+		std::is_polymorphic_v<ClassType>, \
+		std::is_abstract_v<ClassType>,
 
 #define META_CLASS_BEGIN( ClassType ) META_CLASS_BEGIN_COMMON( ClassType ) {
 

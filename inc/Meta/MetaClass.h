@@ -23,18 +23,20 @@ class MetaClass : public MetaType
 {
 public:
 	// for non-polymorphic or base classes and structs
-	MetaClass( std::string name, bool polymorphic, std::vector<MetaVariable> variables )
+	MetaClass( std::string name, bool polymorphic, bool abstract, std::vector<MetaVariable> variables )
 		: MetaType( std::move( name ) )
 		, m_variables{ std::move( variables ) }
 		, m_polymorphic{ polymorphic }
+		, m_abstract{ abstract }
 	{}
 
 	// for derrived classes and structs
-	MetaClass( std::string name, bool polymorphic, const MetaClass* parent, std::vector<MetaVariable> variables )
+	MetaClass( std::string name, bool polymorphic, bool abstract, const MetaClass* parent, std::vector<MetaVariable> variables )
 		: MetaType( std::move( name ) )
 		, m_variables{ std::move( variables ) }
 		, m_parent{ parent }
 		, m_polymorphic{ polymorphic }
+		, m_abstract{ abstract }
 	{
 		m_parent->addChildClass( this );
 	}
@@ -54,6 +56,7 @@ public:
 	bool isDerrived() const { return m_parent != nullptr; }
 	bool isBasePolymorphic() const { return m_parent == nullptr && m_polymorphic; }
 	bool isMonomorphic() const { return m_parent == nullptr && !m_polymorphic; }
+	bool isAbstract() const { return m_abstract; }
 
 private:
 
@@ -67,6 +70,7 @@ private:
 
 	const MetaClass* m_parent = nullptr;
 	bool m_polymorphic;
+	bool m_abstract;
 
 	mutable std::vector<const MetaClass*> m_children; // children are registered after class is created
 };
