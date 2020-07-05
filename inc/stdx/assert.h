@@ -68,9 +68,9 @@
 #define dbBreakMessage( ... )
 #define dbAssert( condition )
 #define dbAssertMessage( condition, ... )
-#define dbExpects( condition )
-#define dbEnsures( condition )
 #define dbVerify( condition ) ( condition )
 #define dbVerifyMessage( condition, ... ) ( condition )
+#define dbExpects( condition )
+#define dbEnsures( condition )
 
 #endif

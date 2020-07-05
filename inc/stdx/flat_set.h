@@ -183,14 +183,14 @@ public:
 	iterator find( const K& x )
 	{
 		auto it = lower_bound( x );
-		return isEntry( it, key ) ? it : end();
+		return isEntry( it, x ) ? it : end();
 	}
 
 	template <class K>
 	const_iterator find( const K& x ) const
 	{
 		auto it = lower_bound( x );
-		return isEntry( it, key ) ? it : cend();
+		return isEntry( it, x ) ? it : cend();
 	}
 
 	bool contains( const Key& key ) const
@@ -284,25 +284,29 @@ public:
 private:
 	std::pair<iterator, bool> insert( const_iterator first, const_iterator last, const value_type& value )
 	{
-		auto it = std::lower_bound( first, last, value );
+		auto const_it = std::lower_bound( first, last, value );
+		iterator it = begin() + ( const_it - begin() );
+
 		if ( it != end() && *it == value )
-			return { it, false };
+			return std::pair{ it, false };
 
 		m_values.insert( it, value );
-		return { it, true };
+		return std::pair{ it, true };
 	}
 
 	std::pair<iterator, bool> insert( const_iterator first, const_iterator last, value_type&& value )
 	{
-		auto it = std::lower_bound( first, last, value );
+		auto const_it = std::lower_bound( first, last, value );
+		iterator it = begin() + ( const_it - begin() );
+
 		if ( it != end() && *it == value )
-			return { it, false };
+			return std::pair{ it, false };
 
 		m_values.insert( it, std::move( value ) );
-		return { it, true };
+		return std::pair{ it, true };
 	}
 
-	bool isEntry( const_iterator it, const value_type& value ) const
+	bool isEntry( const_iterator it, const value_type& value ) const noexcept
 	{
 		return ( it != cend() ) && ( *it == value );
 	}

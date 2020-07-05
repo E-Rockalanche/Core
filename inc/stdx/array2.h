@@ -1,23 +1,30 @@
 #pragma once
 
+#include <stdx/memory.h>
+
 #include <algorithm>
 #include <iterator>
+
+namespace stdx
+{
 
 template <typename T>
 class array2
 {
+public:
 	using element_type = T;
 	using value_type = std::remove_cv_t<T>;
-	using pointer = T*;
+	using pointer = T * ;
 	using const_pointer = const T*;
-	using reference = T&;
+	using reference = T & ;
 	using const_reference = const T&;
 	using iterator = pointer;
 	using const_iterator = const_pointer;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 	using size_type = std::size_t;
-	using index_type = std::ptrdiff_t;
+	using difference_type = std::ptrdiff_t;
+	using index_type = size_type;
 
 	array2() noexcept = default;
 
@@ -26,26 +33,30 @@ class array2
 		defaultAllocate( w, h );
 	}
 
-	array2( array2&& ) noexcept = default;
-
-	template <typename U>
-	array2( const array2<U>& other )
+	array2( size_type w, size_type h, const T& value )
 	{
-		overwriteAllocate( other.width(), other.height() );
-		std::copy( other.begin(), other.end(), data() );
+		overwriteAllocate( w, h );
+		fill( value );
 	}
 
-	array2& operator=( array2&& ) = default;
+	array2( array2&& ) noexcept = default;
 
-	template <typename U>
-	array2& operator=( const array2<U>& other )
+	array2( const array2& other )
+	{
+		overwriteAllocate( other.width(), other.height() );
+		std::copy( other.begin(), other.end(), begin() );
+	}
+
+	array2& operator=( array2&& other ) = default;
+
+	array2& operator=( const array2& other )
 	{
 		if ( m_width != other.width() && m_height != other.height() )
 			overwriteAllocate( other.width(), other.height() );
 
-		std::copy( other.begin(), other.end(), data() );
+		std::copy( other.begin(), other.end(), begin() );
 	}
-	
+
 	size_type width() const noexcept { return m_width; }
 	size_type height() const noexcept { return m_height; }
 
@@ -53,6 +64,7 @@ class array2
 	const T* data() const noexcept { return m_data.get(); }
 
 	size_type size() const noexcept { return m_width * m_height; }
+	difference_type ssize() const noexcept { return static_cast<difference_type>( m_width * m_height ); }
 
 	T& get( index_type x, index_type y ) noexcept
 	{
@@ -69,7 +81,7 @@ class array2
 	}
 
 	template <typename U>
-	void set( index_type x, index_type y, U&& value ) noexcept
+	void set( index_type x, index_type y, U&& value )
 	{
 		dbAssert( 0 <= x && x < m_width );
 		dbAssert( 0 <= y && y < m_height );
@@ -95,28 +107,40 @@ class array2
 		if ( m_width == w && m_height == h )
 			return;
 
-		array2 newArray( w, h );
-		newArray.copy( *this, 0, 0, w, h, 0, 0 );
-		swap( newArray );
+		if ( w <= m_width && h <= m_height )
+		{
+			// no zero init
+			array2 newArray;
+			newArray.overwriteAllocate( w, h );
+			newArray.copy( *this, 0, 0, w, h, 0, 0 );
+			swap( newArray );
+		}
+		else
+		{
+			// must zero init
+			array2 newArray( w, h );
+			newArray.copy( *this, 0, 0, ( std::min )( m_width, w ), ( std::min )( m_height, h ), 0, 0 );
+			swap( newArray );
+		}
 	}
 
-	T* begin() noexcept { return m_data.get(); }
-	T* end() noexcept { return begin() + size(); }
+	iterator begin() noexcept { return m_data.get(); }
+	iterator end() noexcept { return begin() + size(); }
 
-	const T* begin() const noexcept { return m_data.get(); }
-	const T* end() const noexcept { return begin() + size(); }
+	const_iterator begin() const noexcept { return m_data.get(); }
+	const_iterator end() const noexcept { return begin() + size(); }
 
-	const T* cbegin() const noexcept { return begin(); }
-	const T* cend() const noexcept { return end(); }
+	const_iterator cbegin() const noexcept { return begin(); }
+	const_iterator cend() const noexcept { return end(); }
 
-	T* begin() noexcept { return m_data.get(); }
-	T* end() noexcept { return begin() + size(); }
+	reverse_iterator rbegin() noexcept { return end(); }
+	reverse_iterator rend() noexcept { return begin(); }
 
-	const T* begin() const noexcept { return m_data.get(); }
-	const T* end() const noexcept { return begin() + size(); }
+	const_reverse_iterator rbegin() const noexcept { return end(); }
+	const_reverse_iterator rend() const noexcept { return begin(); }
 
-	const T* cbegin() const noexcept { return begin(); }
-	const T* cend() const noexcept { return end(); }
+	const_reverse_iterator crbegin() const noexcept { return end(); }
+	const_reverse_iterator crend() const noexcept { return begin(); }
 
 	void fill( const T& value )
 	{
@@ -124,12 +148,62 @@ class array2
 			element = value;
 	}
 
+	void fill( index_type left, index_type top, size_type w, size_type h, const T& value )
+	{
+		dbAssert( left >= 0 );
+		dbAssert( top >= 0 );
+		dbAssert( left + w <= width() );
+		dbAssert( top + h <= height() );
+
+		const auto rowStart = begin() + ( top * m_width ) + left;
+		const auto rowEnd = rowStart + ( h * m_width );
+
+		for ( auto row = rowStart; row != rowEnd; row += m_width )
+		{
+			std::fill_n( row, w, value );
+		}
+	}
+
 	template <typename U>
 	void copy(
 		const array2<U>& other,
-		index_type left,	index_type top,
-		size_type w,		size_type h,
-		index_type destX,	index_type destY );
+		index_type left,
+		index_type top,
+		size_type w,
+		size_type h,
+		index_type destX,
+		index_type destY )
+	{
+		dbAssert( 0 <= left && left + w <= other.width() );
+		dbAssert( 0 <= top && top + h <= other.height() );
+		dbAssert( 0 <= destX && destX + w <= width() );
+		dbAssert( 0 <= destY && destY + h <= height() );
+
+		auto destRow = begin() + ( destY * m_width ) + destX;
+		const auto destRowEnd = destRow + ( h * m_width );
+
+		auto srcRow = other.begin() + ( top * other.m_width ) + left;
+
+		for ( ; destRow != destRowEnd; destRow += m_width, srcRow += other.m_width )
+		{
+			std::copy( srcRow, srcRow + w, destRow );
+		}
+	}
+
+	friend bool operator==( const array2& lhs, const array2& rhs )
+	{
+		if ( lhs.m_width != rhs.m_width || lhs.m_height != rhs.m_height )
+			return false;
+
+		auto[ lhsIt, rhsIt ] = std::mismatch( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() );
+		dbAssert( ( lhsIt == lhs.end() ) == ( rhsIt == rhs.end() ) );
+		return ( lhsIt == lhs.end() );
+	}
+
+	friend bool operator!=( const array2& lhs, const array2& rhs )
+	{
+		return !( lhs == rhs );
+	}
 
 private:
 	void defaultAllocate( size_type w, size_type h )
@@ -141,7 +215,7 @@ private:
 
 	void overwriteAllocate( size_type w, size_type h )
 	{
-		m_data = std::make_unique_for_overwrite<T[]>( w * h );
+		m_data = stdx::make_unique_for_overwrite<T[]>( w * h );
 		m_width = w;
 		m_height = h;
 	}
@@ -152,23 +226,5 @@ private:
 	size_type m_height = 0;
 };
 
-template <typename T>
-template <typename U>
-void array2<T>::copy(
-	const array2<U>& other,
-	index_type left,	index_type top,
-	size_type w,		size_type h,
-	index_type destX,	index_type destY )
-{
-	dbAssert( 0 <= left && left + w <= other.width() );
-	dbAssert( 0 <= top && top + h <= other.height() );
-	dbAssert( 0 <= destX && destX + w <= width() );
-	dbAssert( 0 <= destY && destY + h <= height() );
+} // namespace stdx
 
-	for ( size_type y = 0; y < h; ++y )
-	{
-		T* destRow = data() + y * width();
-		const U* srcRow = other.data() + y * other.width();
-		std::copy( srcRow + left, srcRow + left + w, destRow + destX );
-	}
-}

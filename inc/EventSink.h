@@ -63,6 +63,7 @@ private:
 	}
 
 	friend class BaseEventSink;
+	template <typename R, typename... Args> friend class EventSink;
 };
 
 namespace detail
@@ -131,11 +132,11 @@ public:
 	{
 		for ( auto& entry : m_subscribers )
 		{
-			entry->listener->Remove( *this );
+			entry.listener->Remove( this );
 		}
 	}
 
-	void operator+=( detail::Subscription&& subscription ) noexcept
+	void operator+=( detail::Subscription<R(Args...)>&& subscription ) noexcept
 	{
 		dbAssertMessage(
 			std::none_of(
@@ -148,7 +149,7 @@ public:
 		m_subscribers.insert( pos, std::move( subscription ) );
 	}
 
-	void operator()( const Args&..args ) noexcept
+	void operator()( Args... args ) noexcept
 	{
 		for ( auto& entry : m_subscribers )
 		{
@@ -162,6 +163,16 @@ public:
 				entry.function( args... );
 			}
 		}
+	}
+
+	uint32_t GetLowestPriority() const noexcept
+	{
+		return m_subscribers.empty() ? 0 : m_subscribers.back().priority;
+	}
+
+	uint32_t GetHighestPriority() const noexcept
+	{
+		return m_subscribers.empty() ? 0 : m_subscribers.front().priority;
 	}
 
 private:

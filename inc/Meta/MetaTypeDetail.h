@@ -89,8 +89,8 @@ void MetaPrimitive<T>::read( MetaReader& reader, void* data ) const
 	{
 		const int64_t result = reader.readInt();
 
-		constexpr uint64_t MaxT = std::min<uint64_t>( MaxValue<T>, MaxValue<int64_t> );
-		constexpr int64_t MinT = std::max<int64_t>( MinValue<T>, MinValue<int64_t> );
+		constexpr uint64_t MaxT = std::min<uint64_t>( std::numeric_limits<T>::max(), std::numeric_limits<int64_t>::max() );
+		constexpr int64_t MinT = std::max<int64_t>( std::numeric_limits<T>::min(), std::numeric_limits<int64_t>::min() );
 		if ( result > narrow_cast<int64_t>( MaxT ) || result < narrow_cast<int64_t>( MinT ) )
 			throw MetaIOException( stdx::format( "Integer {} cannot fit in type {}", result, getName() ) );
 
@@ -117,25 +117,25 @@ void MetaPrimitive<T>::read( MetaReader& reader, void* data ) const
 }
 
 template <>
-void MetaPrimitive<bool>::write( MetaWriter& writer, const void* data ) const
+inline void MetaPrimitive<bool>::write( MetaWriter& writer, const void* data ) const
 {
 	writer.writeBool( *static_cast<const bool*>( data ) );
 }
 
 template <>
-void MetaPrimitive<bool>::read( MetaReader& reader, void* data ) const
+inline void MetaPrimitive<bool>::read( MetaReader& reader, void* data ) const
 {
 	*static_cast<bool*>( data ) = reader.readBool();
 }
 
 template <>
-void MetaPrimitive<char>::write( MetaWriter& writer, const void* data ) const
+inline void MetaPrimitive<char>::write( MetaWriter& writer, const void* data ) const
 {
 	writer.writeString( std::string_view( static_cast<const char*>( data ), 1 ) );
 }
 
 template <>
-void MetaPrimitive<char>::read( MetaReader& reader, void* data ) const
+inline void MetaPrimitive<char>::read( MetaReader& reader, void* data ) const
 {
 	auto str = reader.readString();
 	if ( str.size() != 1 )
@@ -144,25 +144,8 @@ void MetaPrimitive<char>::read( MetaReader& reader, void* data ) const
 	*static_cast<char*>( data ) = str.front();
 }
 
-template <>
-void MetaPrimitive<Math::Colour>::write( MetaWriter& writer, const void* data ) const
-{
-	const Math::Colour& colour = *static_cast<const Math::Colour*>( data );
-	writer.writeInt( static_cast<uint32_t>( colour ), 16 );
-}
-
-template <>
-void MetaPrimitive<Math::Colour>::read( MetaReader& reader, void* data ) const
-{
-	const auto code = reader.readInt();
-	if ( code < 0 || code > 0xffffffff )
-		throw MetaIOException( stdx::format( "Invalid colour code: {}", code ) );
-
-	*static_cast<Math::Colour*>( data ) = narrow_cast<uint32_t>( code );
-}
-
 #define DECLARE_META_PRIMITIVE( type ) \
-template<> const MetaType* MetaTypeResolver<type>::get() { \
+template<> inline const MetaType* MetaTypeResolver<type>::get() { \
 	static const MetaPrimitive<type> s_metaType; \
 	return &s_metaType; \
 }
@@ -179,7 +162,6 @@ DECLARE_META_PRIMITIVE( float )
 DECLARE_META_PRIMITIVE( double )
 DECLARE_META_PRIMITIVE( bool )
 DECLARE_META_PRIMITIVE( std::string )
-DECLARE_META_PRIMITIVE( Math::Colour )
 
 template <typename List>
 class MetaList : public MetaType

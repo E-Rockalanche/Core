@@ -8,7 +8,7 @@
 namespace stdx
 {
 
-template <class Key, class T>
+template <class Key, class T, class Compare = std::less<Key>>
 class flat_map
 {
 public:
@@ -17,7 +17,7 @@ public:
 	using value_type = std::pair<Key, T>;
 	using size_type = typename std::vector<value_type>::size_type;
 	using difference_type = typename std::vector<value_type>::difference_type;
-	using key_compare = std::less<Key>;
+	using key_compare = Compare;
 	using reference = value_type&;
 	using const_reference = const value_type&;
 	using pointer = value_type*;
@@ -28,25 +28,31 @@ public:
 	using const_reverse_iterator = typename std::vector<value_type>::const_reverse_iterator;
 
 public:
+
+	// construction/assignment
+
 	flat_map() noexcept = default;
 
 	template <class InputIt>
-	flat_map( InputIt first, InputIt last ) {
+	flat_map( InputIt first, InputIt last )
+	{
 		m_values.reserve( static_cast<size_t>( last - first ) );
 		for(auto it = first; it != last; ++it)
 			insert( *it );
 	}
 
-	flat_map( const flat_map& other ) : flat_map( other.cbegin(), other.cend() ) {}
-	flat_map( flat_map&& other ) noexcept : m_values( std::move( other.m_values ) ) {}
+	flat_map( const flat_map& ) = default;
+
+	flat_map( flat_map&& ) noexcept = default;
+
 	flat_map( std::initializer_list<value_type> init ) : flat_map( init.begin(), init.end() ) {}
 
 	~flat_map() = default;
 
-	void reserve( size_type s ) { m_values.reserve( s ); }
-
 	flat_map& operator=( const flat_map& other ) = default;
-	flat_map& operator=( flat_map&& other ) noexcept { m_values = std::move( other.m_values ); }
+
+	flat_map& operator=( flat_map&& other ) noexcept = default;
+
 	flat_map& operator=( std::initializer_list<value_type> iList )
 	{
 		clear();
@@ -55,7 +61,8 @@ public:
 			insert( value );
 	}
 
-	// throws std::out_of_range
+	// element access
+
 	T& at( const Key& key )
 	{
 		auto it = lower_bound( key );
@@ -75,6 +82,8 @@ public:
 	T& operator[]( const Key& key ) { return try_emplace( key, T() ).first->second; }
 	T& operator[]( Key&& key ) { return try_emplace( std::move( key ), T() ).first->second; }
 
+	// iterators
+
 	iterator begin() noexcept { return m_values.begin(); }
 	iterator end() noexcept { return m_values.end(); }
 
@@ -90,10 +99,17 @@ public:
 	const_reverse_iterator crbegin() const noexcept { return m_values.crbegin(); }
 	const_reverse_iterator crend() const noexcept { return m_values.crend(); }
 
+	// capacity
+
 	[[nodiscard]] bool empty() const noexcept { return m_values.empty(); }
 	size_type size() const noexcept { return m_values.size(); }
+	difference_type ssize() const noexcept { return static_cast<difference_type>( m_values.size() ); }
 	size_type max_size() const noexcept { return m_values.max_size(); }
 	size_type capacity() const noexcept { return m_values.capacity(); }
+
+	// modifiers
+
+	void reserve( size_type s ) { m_values.reserve( s ); }
 
 	void shrink_to_fit() { return m_values.shrink_to_fit(); }
 
@@ -111,9 +127,10 @@ public:
 
 	iterator insert( const_iterator hint, const value_type& value )
 	{
-		if ( value.first < hint->first )
+		const key_compare comparator;
+		if ( comparator( value.first, hint->first ) )
 		{
-			if ( hint == begin() || (hint-1)->first < value.first )
+			if ( hint == begin() || comparator( ( hint - 1 )->first, value.first ) )
 				return m_values.insert( hint, value );
 			else
 				return insert( begin(), hint, value ).first;
@@ -124,9 +141,10 @@ public:
 
 	iterator insert( const_iterator hint, value_type&& value )
 	{
-		if ( value.first < hint->first )
+		const key_compare comparator;
+		if ( comparator( value.first, hint->first ) )
 		{
-			if ( hint == begin() || (hint-1)->first < value.first )
+			if ( hint == begin() || comparator( ( hint - 1 )->first, value.first ) )
 				return m_values.insert( hint, std::move( value ) );
 			else
 				return insert( begin(), hint, std::move( value ) ).first;
@@ -174,6 +192,7 @@ public:
 		it = m_values.insert( it, value_type( std::move( k ), std::forward<M>( obj )));
 		return { it, true };
 	}
+
 	template <class M>
 	iterator insert_or_assign( const_iterator hint, const key_type& k, M&& obj )
 	{
@@ -185,6 +204,7 @@ public:
 
 		return insert( hint, k, std::forward<M>( obj ) );
 	}
+
 	template <class M>
 	iterator insert_or_assign( const_iterator hint, key_type&& k, M&& obj)
 	{
@@ -234,39 +254,42 @@ public:
 	}
 
 	template <class... Args>
-	iterator try_emplace( const_iterator hint, const key_type& k, Args&&... args)
+	iterator try_emplace( const_iterator hint, const key_type& k, Args&&... args )
 	{
-		if ( hint == end() || k < hint->first )
+		const key_compare comparator;
+		if ( hint == end() || comparator( k, hint->first ) )
 		{
-			if ( hint == begin() || (hint-1)->first < k )
+			if ( hint == begin() || comparator( ( hint - 1 )->first, k ) )
 				return m_values.emplace( k, T( std::forward<Args>( args )... ) );
 			else
 				return insert( begin(), hint, value_type( k, T( std::forward<Args>( args )... ) ) ).first;
 		}
 
-		return insert( hint+1, end(), value_type( k, T( std::forward<Args>( args )... ) ) ).first;
+		return insert( hint + 1, end(), value_type( k, T( std::forward<Args>( args )... ) ) ).first;
 	}
 	
 	template <class... Args>
-	iterator try_emplace( const_iterator hint, key_type&& k, Args&&... args)
+	iterator try_emplace( const_iterator hint, key_type&& k, Args&&... args )
 	{
-		if ( hint == end() || k < hint->first )
+		const key_compare comparator;
+		if ( hint == end() || comparator( k, hint->first ) )
 		{
-			if ( hint == begin() || (hint-1)->first < k )
+			if ( hint == begin() || comparator( ( hint - 1 )->first, k ) )
 				return m_values.emplace( std::move( k ), T( std::forward<Args>( args )... ) );
 			else
 				return insert( begin(), hint, value_type( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
 		}
 
-		return insert( hint+1, end(), value_type( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
+		return insert( hint + 1, end(), value_type( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
 	}
 
 	iterator erase( const_iterator pos ) { return m_values.erase( pos ); }
+
 	iterator erase( const_iterator first, const_iterator last ) { return m_values.erase( first, last ); }
 	
 	size_type erase( const key_type& key )
 	{
-		auto it = find( key );
+		const auto it = find( key );
 		if ( it == end() )
 			return 0;
 
@@ -276,156 +299,168 @@ public:
 
 	void swap( flat_map& other ) noexcept
 	{
-		std::vector<value_type> temp = std::move( m_values );
+		auto temp = std::move( m_values );
 		m_values = std::move( other.m_values );
 		other.m_values = std::move( temp );
 	}
 
-	iterator find( const Key& key ) noexcept
+	// lookup
+
+	iterator find( const Key& key )
 	{
-		auto it = lower_bound( key );
+		const auto it = lower_bound( key );
 		return isEntry( it, key ) ? it : end();
 	}
 
-	const_iterator find( const Key& key ) const noexcept
+	const_iterator find( const Key& key ) const
 	{
-		auto it = lower_bound( key );
+		const auto it = lower_bound( key );
 		return isEntry( it, key ) ? it : cend();
 	}
 
 	template <class K>
-	iterator find( const K& x ) noexcept
+	iterator find( const K& x )
 	{
-		auto it = lower_bound( x );
+		const auto it = lower_bound( x );
 		return isEntry( it, x ) ? it : end();
 	}
 
 	template <class K>
-	const_iterator find( const K& x ) const noexcept
+	const_iterator find( const K& x ) const
 	{
-		auto it = lower_bound( x );
+		const auto it = lower_bound( x );
 		return isEntry( it, x ) ? it : cend();
 	}
 
-	bool contains( const Key& key ) const noexcept { return find( key ) != cend(); }
-	template <class K>
-	bool contains( const K& x ) const noexcept { return find( x ) != cend(); }
+	bool contains( const Key& key ) const { return find( key ) != cend(); }
 
-	iterator lower_bound( const Key& key ) noexcept
-	{
-		return std::lower_bound( begin(), end(), key, []( auto& entry, auto& key ){
-			return entry.first < key;
-		} );
-	}
-	const_iterator lower_bound( const Key& key) const noexcept
-	{
-		return std::lower_bound( cbegin(), cend(), key, []( auto& entry, auto& key ){
-			return entry.first < key;
-		} );
-	}
 	template <class K>
-	iterator lower_bound( const K& x ) noexcept
+	bool contains( const K& x ) const { return find( x ) != cend(); }
+
+	iterator lower_bound( const Key& key )
 	{
-		return std::lower_bound( begin(), end(), x, []( auto& entry, auto& x ){
-			return entry.first < x;
-		} );
-	}
-	template <class K>
-	const_iterator lower_bound( const K& x ) const noexcept
-	{
-		return std::lower_bound( cbegin(), cend(), x, []( auto& entry, auto& x ){
-			return entry.first < x;
+		const key_compare comparator;
+		return std::lower_bound( begin(), end(), key, [&]( auto& entry, auto& key ){
+			return comparator( entry.first, key );
 		} );
 	}
 
-	iterator upper_bound( const Key& key ) noexcept
+	const_iterator lower_bound( const Key& key) const
 	{
-		return std::upper_bound( begin(), end(), key, []( auto& entry, auto& key ){
-			return entry.first < key;
-		} );
-	}
-	const_iterator upper_bound( const Key& key) const noexcept
-	{
-		return std::upper_bound( cbegin(), cend(), key, []( auto& entry, auto& key ){
-			return entry.first < key;
-		} );
-	}
-	template <class K>
-	iterator upper_bound( const K& x ) noexcept
-	{
-		return std::upper_bound( begin(), end(), x, []( auto& entry, auto& x ){
-			return entry.first < x;
-		} );
-	}
-	template <class K>
-	const_iterator upper_bound( const K& x ) const noexcept
-	{
-		return std::upper_bound( cbegin(), cend(), x, []( auto& entry, auto& x ){
-			return entry.first < x;
+		const key_compare comparator;
+		return std::lower_bound( begin(), end(), key, [&]( auto& entry, auto& key ) {
+			return comparator( entry.first, key );
 		} );
 	}
 
-	key_compare key_comp() const noexcept { return key_compare(); }
+	template <class K>
+	iterator lower_bound( const K& x )
+	{
+		const key_compare comparator;
+		return std::lower_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
+			return comparator( entry.first, x );
+		} );
+	}
 
-	friend bool operator==( const flat_map& lhs, const flat_map& rhs ) noexcept
+	template <class K>
+	const_iterator lower_bound( const K& x ) const
+	{
+		const key_compare comparator;
+		return std::lower_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
+			return comparator( entry.first, x );
+		} );
+	}
+
+	iterator upper_bound( const Key& key )
+	{
+		const key_compare comparator;
+		return std::upper_bound( begin(), end(), key, [&]( auto& entry, auto& key ){
+			return comparator( entry.first, key );
+		} );
+	}
+
+	const_iterator upper_bound( const Key& key) const
+	{
+		const key_compare comparator;
+		return std::upper_bound( begin(), end(), key, [&]( auto& entry, auto& key ) {
+			return comparator( entry.first, key );
+		} );
+	}
+
+	template <class K>
+	iterator upper_bound( const K& x )
+	{
+		const key_compare comparator;
+		return std::upper_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
+			return comparator( entry.first, x );
+		} );
+	}
+
+	template <class K>
+	const_iterator upper_bound( const K& x ) const
+	{
+		const key_compare comparator;
+		return std::upper_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
+			return comparator( entry.first, x );
+		} );
+	}
+
+	// observers
+
+	constexpr key_compare key_comp() const { return key_compare{}; }
+
+	// comparison
+
+	friend bool operator==( const flat_map& lhs, const flat_map& rhs )
 	{
 		return lhs.m_values == rhs.m_values;
 	}
 
-	friend bool operator!=( const flat_map& lhs, const flat_map& rhs ) noexcept
+	friend bool operator!=( const flat_map& lhs, const flat_map& rhs )
 	{
 		return lhs.m_values != rhs.m_values;
 	}
 
-	friend bool operator<( const flat_map& lhs, const flat_map& rhs ) noexcept
+	friend bool operator<( const flat_map& lhs, const flat_map& rhs )
 	{
 		return lhs.m_values < rhs.m_values;
 	}
 
-	friend bool operator>( const flat_map& lhs, const flat_map& rhs ) noexcept
+	friend bool operator>( const flat_map& lhs, const flat_map& rhs )
 	{
 		return lhs.m_values > rhs.m_values;
 	}
 
-	friend bool operator<=( const flat_map& lhs, const flat_map& rhs ) noexcept
+	friend bool operator<=( const flat_map& lhs, const flat_map& rhs )
 	{
 		return lhs.m_values <= rhs.m_values;
 	}
 
-	friend bool operator>=( const flat_map& lhs, const flat_map& rhs ) noexcept
+	friend bool operator>=( const flat_map& lhs, const flat_map& rhs )
 	{
 		return lhs.m_values >= rhs.m_values;
 	}
 
 private:
-	std::pair<iterator, bool> insert( const_iterator first, const_iterator last, const value_type& value )
+	template <typename Value>
+	std::pair<iterator, bool> insert( const_iterator first, const_iterator last, Value&& value )
 	{
-		auto const_it = std::lower_bound( first, last, value.first, []( auto& entry, auto& key ){
-			return entry.first < key;
+		const key_compare comparator;
+		auto const_it = std::lower_bound( first, last, value.first, [&]( auto& entry, auto& key ){
+			return comparator( entry.first, key );
 		} );
-		iterator it = begin() + ( const_it - end() );
+
+		iterator it = begin() + std::distance( cbegin(), const_it );
+
 		if ( isEntry( it, value.first ) )
 			return { it, false };
 
-		m_values.insert( it, value );
-		return { it, true };
-	}
-
-	std::pair<iterator, bool> insert( const_iterator first, const_iterator last, value_type&& value )
-	{
-		auto const_it = std::lower_bound( first, last, value.first, []( auto& entry, auto& key ){
-			return entry.first < key;
-		} );
-		iterator it = begin() + ( const_it - end() );
-		if ( isEntry( it, value.first ) )
-			return { it, false };
-
-		m_values.insert( it, std::move( value ) );
+		m_values.insert( it, std::forward<Value>( value ) );
 		return { it, true };
 	}
 
 	template <typename I, typename K>
-	bool isEntry( const I& it, const K& key ) const noexcept
+	constexpr bool isEntry( const I& it, const K& key ) const
 	{
 		return ( it != cend() ) && ( it->first == key );
 	}

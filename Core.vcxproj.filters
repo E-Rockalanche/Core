@@ -97,16 +97,52 @@
     <ClInclude Include="inc\stdx\basic_int.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
-    <ClInclude Include="inc\EventSink\EventSink.h">
+    <ClInclude Include="inc\Math\Vector2.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\random.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Json.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="inc\EventSink\Vector2.h">
+    <ClInclude Include="inc\EventSink.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\utility.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\polymorphic.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\priority_queue.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\thread_pool.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Vector3.h">
       <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\BasicMatrix.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Matrix3.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Transform.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\UniqueId.h">
+      <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaType.cpp">
       <Filter>src\Meta</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Json.cpp">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

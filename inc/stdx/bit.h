@@ -1,6 +1,7 @@
 #ifndef STDX_BIT_HPP
 #define STDX_BIT_HPP
 
+#include <stdx/assert.h>
 #include <stdx/type_traits.h>
 #include <cstdint>
 #include <limits>
@@ -140,7 +141,7 @@ constexpr T bit_ceil( T x ) noexcept
 	if ( has_single_bit( x ) )
 		return x;
 
-	T result = 1 << bit_width( x );
+	const T result = 1 << bit_width( x );
 	dbAssert( result != 0 ); // check overflow
 	return result;
 }
@@ -184,6 +185,30 @@ template <typename T,
 		return ( x >> r ) | ( x << ( N - r ) );
 	else if ( r < 0 )
 		return ( x << -r ) | ( x >> ( N + r ) );
+}
+
+constexpr uintmax_t unsigned_bits_max( size_t bits ) noexcept
+{
+	dbExpects( bits > 0 );
+	const uintmax_t result = ( uintmax_t{ 1 } << bits ) - 1;
+	dbEnsures( result != 0 );
+	return result;
+}
+
+constexpr intmax_t signed_bits_max( size_t bits ) noexcept
+{
+	dbExpects( bits > 0 );
+	const intmax_t result = ( intmax_t{ 1 } << ( bits - 1 ) ) - 1;
+	dbEnsures( result != 0 || bits == 1 );
+	return static_cast<int64_t>( result );
+}
+
+constexpr intmax_t signed_bits_min( size_t bits ) noexcept
+{
+	dbExpects( bits > 0 );
+	const intmax_t result = ( intmax_t{ 1 } << ( bits - 1 ) );
+	dbEnsures( result != 0 );
+	return static_cast<int64_t>( result );
 }
 
 }

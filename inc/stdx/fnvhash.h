@@ -1,6 +1,9 @@
 #include <stdx/int.h>
 #include <stdx/span.h>
 
+namespace stdx
+{
+
 namespace detail
 {
 
@@ -24,7 +27,7 @@ struct fnv_constants<uint64_t>
 }
 
 template <typename T>
-constexpr T fnv1a( stdx::span<const uint8_t> data )
+constexpr T fnv1a( stdx::span<const uint8_t> data ) noexcept
 {
 	T hash = fnv_constants<T>::basis;
 
@@ -35,3 +38,5 @@ constexpr T fnv1a( stdx::span<const uint8_t> data )
 
 	return hash;
 }
+
+} // namespace stdx

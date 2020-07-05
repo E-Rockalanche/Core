@@ -117,6 +117,17 @@ constexpr InputIt find_if_not( InputIt first, const InputIt last, UnaryPredicate
 	return last;
 }
 
+template <class InputIt, class T>
+constexpr bool contains( InputIt first, const InputIt last, const T& value )
+{
+	for ( ; first != last; ++first )
+	{
+		if ( value == *first )
+			return true;
+	}
+	return false;
+}
+
 template <class InputIt, class OutputIt>
 constexpr OutputIt copy( InputIt first, const InputIt last, OutputIt dest )
 {

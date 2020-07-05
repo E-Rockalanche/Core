@@ -2,6 +2,7 @@
 
 #include <stdx/algorithm.h>
 #include <stdx/basic_iterator.h>
+#include <stdx/int.h>
 #include <stdx/reflection.h>
 #include <stdx/type_traits.h>
 
@@ -9,6 +10,14 @@
 #include <optional>
 
 namespace stdx {
+
+namespace detail {
+template <typename E>
+using bitset_enum_t = decltype( E::is_bitset_enum );
+}
+
+template <typename E>
+constexpr bool is_bitset_enum_v = std::is_enum_v<E> && is_detected_v<detail::bitset_enum_t, E>;
 
 template <typename E>
 struct enum_range_traits
@@ -18,14 +27,6 @@ struct enum_range_traits
 	static constexpr int min = -8;
 	static constexpr int max = 127;
 };
-
-namespace detail {
-	template <typename E>
-	using bitset_enum_t = decltype( E::is_bitset_enum );
-}
-
-template <typename E>
-constexpr bool is_bitset_enum_v = std::is_enum_v<E> && is_detected_v<detail::bitset_enum_t, E>;
 
 namespace detail {
 
@@ -204,6 +205,9 @@ constexpr std::string_view enum_name( E value ) noexcept
 
 // bitfield ops
 
+namespace enum_bitfield_ops
+{
+
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
 constexpr E operator~( E value ) noexcept
 {
@@ -211,40 +215,225 @@ constexpr E operator~( E value ) noexcept
 }
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
-constexpr auto operator|( E lhs, E rhs ) noexcept
+constexpr E operator|( E lhs, E rhs ) noexcept
 {
 	return static_cast<E>( static_cast<std::underlying_type_t<E>>( lhs ) | static_cast<std::underlying_type_t<E>>( rhs ) );
 }
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
-constexpr auto operator&( E lhs, E rhs ) noexcept
+constexpr E operator&( E lhs, E rhs ) noexcept
 {
 	return static_cast<E>( static_cast<std::underlying_type_t<E>>( lhs ) & static_cast<std::underlying_type_t<E>>( rhs ) );
 }
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
-constexpr auto operator^( E lhs, E rhs ) noexcept
+constexpr E operator^( E lhs, E rhs ) noexcept
 {
 	return static_cast<E>( static_cast<std::underlying_type_t<E>>( lhs ) ^ static_cast<std::underlying_type_t<E>>( rhs ) );
 }
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
-constexpr auto operator|=( E& lhs, E rhs ) noexcept
+constexpr E& operator|=( E& lhs, E rhs ) noexcept
 {
 	return lhs = lhs | rhs;
 }
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
-constexpr auto operator&=( E& lhs, E rhs ) noexcept
+constexpr E& operator&=( E& lhs, E rhs ) noexcept
 {
 	return lhs = lhs & rhs;
 }
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
-constexpr auto operator^=( E& lhs, E rhs ) noexcept
+constexpr E& operator^=( E& lhs, E rhs ) noexcept
 {
 	return lhs = lhs ^ rhs;
 }
+
+}
+
+using namespace enum_bitfield_ops;
+
+template <typename E>
+class enum_bitset
+{
+public:
+	static_assert( is_bitset_enum_v<E>, "enum must be a bitset" );
+
+	constexpr enum_bitset() noexcept = default;
+	constexpr enum_bitset( E value ) noexcept : m_value{ value } {}
+	constexpr enum_bitset( const enum_bitset& other ) noexcept = default;
+
+	constexpr size_t count() const noexcept { return stdx::popcount( m_value ); }
+
+	constexpr size_t size() const noexcept { return sizeof( E ) * 8; } // TODO: use enum reflection
+
+	constexpr bool test_any( E value ) const noexcept { return ( m_value & value ) != static_cast<E>( 0 ); }
+
+	constexpr bool test_none( E value ) const noexcept { return ( m_value & value ) == static_cast<E>( 0 ); }
+
+	constexpr bool test_all( E value ) const noexcept { return ( m_value & value ) == value; }
+
+	constexpr bool any() const noexcept { return m_value != static_cast<E>( 0 ); }
+
+	constexpr bool none() const noexcept { return m_value == static_cast<E>( 0 ); }
+
+	constexpr bool all() const noexcept { return m_value == static_cast<E>( -1 ); } // TODO: use enum reflection
+
+	constexpr enum_bitset& set() noexcept
+	{
+		m_value = static_cast<E>( -1 );
+		return *this;
+	}
+
+	constexpr enum_bitset& set( E bits, bool value = true ) noexcept
+	{
+		if ( value )
+			m_value |= bits;
+		else
+			m_value &= ~bits;
+
+		return *this;
+	}
+
+	constexpr enum_bitset& reset() noexcept
+	{
+		m_value = static_cast<E>( 0 );
+		return *this;
+	}
+
+	constexpr enum_bitset& reset( E bits ) noexcept
+	{
+		m_value &= ~bits;
+		return *this;
+	}
+
+	constexpr enum_bitset& flip() noexcept
+	{
+		m_value = ~m_value;
+		return *this;
+	}
+
+	constexpr enum_bitset& flip( E bits ) noexcept
+	{
+		m_value ^= bits;
+		return *this;
+	}
+
+	constexpr std::string to_string() const
+	{
+		std::string str;
+		str.reserve( size() );
+		for ( E b = 1 << ( sizeof( E ) - 1 ); b != 0; b >>= 1 )
+		{
+			str += ( m_value & b ) ? '1' : '0';
+		}
+		return str;
+	}
+
+	constexpr unsigned long to_ulong() const noexcept
+	{
+		return narrow_cast<unsigned long>( m_value );
+	}
+
+	constexpr unsigned long long to_ullong() const noexcept
+	{
+		return narrow_cast<unsigned long long>( m_value );
+	}
+
+	constexpr E value() const noexcept { return m_value; }
+
+	// operators
+
+	constexpr enum_bitset& operator&=( enum_bitset rhs ) noexcept
+	{
+		m_value &= rhs.m_value;
+		return *this;
+	}
+
+	constexpr enum_bitset& operator|=( enum_bitset rhs ) noexcept
+	{
+		m_value &= rhs.m_value;
+		return *this;
+	}
+
+	constexpr enum_bitset& operator^=( enum_bitset rhs ) noexcept
+	{
+		m_value &= rhs.m_value;
+		return *this;
+	}
+
+	constexpr enum_bitset operator~() noexcept
+	{
+		return enum_bitset{ ~m_value };
+	}
+
+	friend constexpr bool operator==( enum_bitset lhs, enum_bitset rhs ) noexcept
+	{
+		return lhs.m_value == rhs.m_value;
+	}
+
+	friend constexpr bool operator!=( enum_bitset lhs, enum_bitset rhs ) noexcept
+	{
+		return lhs.m_value != rhs.m_value;
+	}
+
+	friend constexpr enum_bitset operator&( enum_bitset lhs, enum_bitset rhs ) noexcept
+	{
+		return enum_bitset{ lhs.m_value & rhs.m_value };
+	}
+
+	friend constexpr enum_bitset operator|( enum_bitset lhs, enum_bitset rhs ) noexcept
+	{
+		return enum_bitset{ lhs.m_value | rhs.m_value };
+	}
+
+	friend constexpr enum_bitset operator^( enum_bitset lhs, enum_bitset rhs ) noexcept
+	{
+		return enum_bitset{ lhs.m_value ^ rhs.m_value };
+	}
+
+	template <typename CharT, typename Traits>
+	friend std::basic_istream<CharT, Traits>& operator>>( std::basic_istream<CharT, Traits>& is, enum_bitset& x )
+	{
+		x = enum_bitset{};
+		for ( size_t n = 0; n < size() && !is.eof(); ++n )
+		{
+			auto c = is.peek();
+			if ( c == '0' )
+			{
+				is.get();
+				x <<= 1;
+			}
+			else if ( c == '1' )
+			{
+				is.get();
+				x = ( x << 1 ) | static_cast<E>( 1 );
+			}
+			else
+			{
+				break;
+			}
+		}
+		return is;
+	}
+
+	template <typename CharT, typename Traits>
+	friend std::basic_ostream<CharT, Traits>& operator<<( std::basic_ostream<CharT, Traits>& os, const enum_bitset& x )
+	{
+		for ( E b = 1 << ( sizeof( E ) - 1 ); b != 0; b >>= 1 )
+		{
+			if ( x.m_value & b )
+				os << '1';
+			else
+				os << '0';
+		}
+		return os;
+	}
+
+private:
+	E m_value = static_cast<E>( 0 );
+};
 
 // enum_map
 
@@ -341,39 +530,43 @@ public:
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-	constexpr enum_map() noexcept = default;
-	constexpr enum_map( const std::initializer_list<value_type> init ) noexcept
+	constexpr enum_map() = default;
+
+	constexpr explicit enum_map( const T& value )
+		: enum_map( value, std::make_integer_sequence<int, enum_count_v<E>>{} )
+	{}
+
+	constexpr enum_map( const enum_map& ) = default;
+	constexpr enum_map( enum_map&& ) noexcept = default;
+
+	constexpr enum_map( const std::initializer_list<value_type> init )
 	{
 		dbExpects( init.size() == enum_count_v<E> );
 
 #ifndef SHIPPING
-		std::size_t initialized_count = 0;
 		std::array<bool, enum_count_v<E>> checks{};
 #endif
 
-		for ( auto& entry : init )
+		for ( const auto& entry : init )
 		{
-			auto index = enum_index( entry.first );
+			const auto index = enum_index( entry.first );
 			dbExpects( index < size() );
 			m_data[ index ] = entry.second;
 
 #ifndef SHIPPING
-			dbExpects( checks[ index ] == false );
+			dbExpects( !checks[ index ] );
 			checks[ index ] = true;
-			++initialized_count;
 #endif
 		}
-
-#ifndef SHIPPING
-		dbExpects( initialized_count == enum_count_v<E> );
-#endif
 	}
-	constexpr enum_map( const T& value ) noexcept : enum_map( value, std::make_integer_sequence<int, enum_count_v<E>>{} ) {}
-	constexpr enum_map( const enum_map& ) noexcept = default;
-	constexpr enum_map( enum_map&& ) noexcept = default;
 
-	enum_map& operator=( const enum_map& ) = default;
-	enum_map& operator=( enum_map&& ) = default;
+	constexpr enum_map& operator=( const enum_map& ) = default;
+	constexpr enum_map& operator=( enum_map&& ) noexcept = default;
+
+	constexpr enum_map& operator=( const std::initializer_list<value_type> init )
+	{
+		return *this = enum_map{ init };
+	}
 
 	// iterators
 	constexpr iterator begin() noexcept { return iterator( *this, 0 ); }
@@ -420,11 +613,13 @@ public:
 
 private:
 
-	template<int>
+	template<std::size_t>
 	static constexpr const mapped_type& value_for_index( const mapped_type& value ) noexcept { return value; }
 
-	template <int... Is>
-	constexpr enum_map( const T& value, std::integer_sequence<int, Is...> ) : m_data{ value_for_index<Is>( value )... } {}
+	template <std::size_t... Is>
+	constexpr enum_map( const T& value, std::index_sequence<Is...> )
+		: m_data{ value_for_index<Is>( value )... }
+	{}
 
 private:
 	std::array<T, enum_count_v<E>> m_data{};
@@ -467,3 +662,17 @@ constexpr bool operator>=( const enum_map<E, T>& lhs, const enum_map<E, T>& rhs 
 }
 
 } // namespace stdx
+
+namespace std
+{
+	template<typename E>
+	struct hash<stdx::enum_bitset<E>>
+	{
+		size_t operator()( stdx::enum_bitset<E> x ) const noexcept
+		{
+			return std::hash<E>{}( x.value() );
+		}
+	};
+}
+
+using namespace stdx::enum_bitfield_ops;

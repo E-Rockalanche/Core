@@ -15,6 +15,15 @@ struct is_unsigned_integral
 template <typename T>
 constexpr bool is_unsigned_integral_v = is_unsigned_integral<T>::value;
 
+template <typename Type, typename... Types>
+struct is_present
+{
+	static constexpr bool value = ( std::is_same_v<Type, Types> || ... );
+};
+
+template <typename Type, typename... Types>
+constexpr bool is_present_v = is_present<Type, Types...>::value;
+
 // detection toolkit
 // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4502.pdf
 

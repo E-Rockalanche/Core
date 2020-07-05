@@ -135,9 +135,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="inc\EventSink\EventSink.h" />
-    <ClInclude Include="inc\EventSink\Vector2.h" />
+    <ClInclude Include="inc\EventSink.h" />
+    <ClInclude Include="inc\Json.h" />
     <ClInclude Include="inc\Math\Colour.h" />
+    <ClInclude Include="inc\Math\Matrix3.h" />
+    <ClInclude Include="inc\Math\BasicMatrix.h" />
+    <ClInclude Include="inc\Math\Transform.h" />
+    <ClInclude Include="inc\Math\Vector2.h" />
+    <ClInclude Include="inc\Math\Vector3.h" />
     <ClInclude Include="inc\Meta\Meta.h" />
     <ClInclude Include="inc\Meta\MetaClass.h" />
     <ClInclude Include="inc\Meta\MetaDeclare.h" />
@@ -163,14 +168,21 @@
     <ClInclude Include="inc\stdx\math.h" />
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
+    <ClInclude Include="inc\stdx\polymorphic.h" />
+    <ClInclude Include="inc\stdx\priority_queue.h" />
+    <ClInclude Include="inc\stdx\random.h" />
     <ClInclude Include="inc\stdx\reflection.h" />
     <ClInclude Include="inc\stdx\simple_map.h" />
     <ClInclude Include="inc\stdx\span.h" />
     <ClInclude Include="inc\stdx\string.h" />
+    <ClInclude Include="inc\stdx\thread_pool.h" />
     <ClInclude Include="inc\stdx\type_traits.h" />
+    <ClInclude Include="inc\stdx\utility.h" />
     <ClInclude Include="inc\stdx\vector_s.h" />
+    <ClInclude Include="inc\UniqueId.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Json.cpp" />
     <ClCompile Include="src\Meta\MetaType.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

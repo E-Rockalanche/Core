@@ -262,6 +262,13 @@ public:
 		return find( x ) != end();
 	}
 
+	// sort underlying data structure to optimize linear lookups
+	template <typename KeyComparator>
+	void sort( KeyComparator c ) noexcept
+	{
+		std::sort( m_data.begin(), m_data.end(), [ c ]( auto& lhs, auto& rhs ) { return c( lhs.first, rhs.first ); } );
+	}
+
 private:
 	std::vector<value_type> m_data;
 };

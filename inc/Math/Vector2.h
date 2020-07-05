@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdx/assert.h>
+#include <cmath>
 
 namespace Math
 {
@@ -8,6 +9,9 @@ namespace Math
 template <typename T>
 struct Vector2
 {
+public:
+	using value_type = T;
+
 	constexpr Vector2() noexcept = default;
 	constexpr Vector2( const Vector2& ) noexcept = default;
 	constexpr Vector2( T x_, T y_ ) noexcept : x{ x_ }, y{ y_ } {}
@@ -55,7 +59,12 @@ struct Vector2
 		return *this;
 	}
 
-	static constexpr DotProduct( const Vector2& lhs, const Vector2& rhs ) noexcept
+	float Length() const noexcept
+	{
+		return std::hypot( static_cast<float>( x ), static_cast<float>( y ) );
+	}
+
+	static constexpr T DotProduct( const Vector2& lhs, const Vector2& rhs ) noexcept
 	{
 		return lhs.x * rhs.x + lhs.y * rhs.y;
 	}
@@ -63,6 +72,18 @@ struct Vector2
 	T x = 0;
 	T y = 0;
 };
+
+template <typename T>
+constexpr bool operator==( const Vector2<T>& lhs, const Vector2<T>& rhs ) noexcept
+{
+	return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+template <typename T>
+constexpr bool operator!=( const Vector2<T>& lhs, const Vector2<T>& rhs ) noexcept
+{
+	return !( lhs == rhs );
+}
 
 template <typename T>
 constexpr Vector2<T> operator+( Vector2<T> lhs, const Vector2<T>& rhs ) noexcept
@@ -97,6 +118,9 @@ constexpr Vector2<T> operator/( Vector2<T> lhs, const U& rhs ) noexcept
 template <typename T>
 struct Position2
 {
+public:
+	using value_type = T;
+
 	constexpr Position2() noexcept = default;
 	constexpr Position2( const Position2& ) noexcept = default;
 	constexpr Position2( T x_, T y_ ) noexcept : x{ x_ }, y{ y_ } {}
@@ -113,14 +137,14 @@ struct Position2
 		return ( &x )[ index ];
 	}
 
-	constexpr Position2& operator+=( const Vector2& rhs ) noexcept
+	constexpr Position2& operator+=( const Vector2<T>& rhs ) noexcept
 	{
 		x += rhs.x;
 		y += rhs.y;
 		return *this;
 	}
 
-	constexpr Position2& operator-=( const Vector2& rhs ) noexcept
+	constexpr Position2& operator-=( const Vector2<T>& rhs ) noexcept
 	{
 		x -= rhs.x;
 		y -= rhs.y;
@@ -130,6 +154,18 @@ struct Position2
 	T x = 0;
 	T y = 0;
 };
+
+template <typename T>
+constexpr bool operator==( const Position2<T>& lhs, const Position2<T>& rhs ) noexcept
+{
+	return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+template <typename T>
+constexpr bool operator!=( const Position2<T>& lhs, const Position2<T>& rhs ) noexcept
+{
+	return !( lhs == rhs );
+}
 
 template <typename T>
 constexpr Position2<T> operator+( Position2<T> lhs, const Vector2<T>& rhs ) noexcept
