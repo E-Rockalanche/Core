@@ -10,7 +10,7 @@ namespace Math
 {
 
 template <typename T>
-class Colour
+class ColourRGB
 {
 	static_assert( std::is_arithmetic_v<T>, "T must be a numeric type" );
 
@@ -23,41 +23,142 @@ public:
 
 	// construction
 
-	Colour() noexcept = default;
+	ColourRGB() noexcept = default;
 
-	constexpr Colour( T red, T green, T blue, T alpha = Max ) noexcept
+	constexpr explicit ColourRGB( T red, T green, T blue ) noexcept
+		: r{ red }
+		, g{ green }
+		, b{ blue }
+	{}
+
+	constexpr explicit ColourRGB( T rgb ) noexcept
+		: r{ rgb }
+		, g{ rgb }
+		, b{ rgb }
+	{}
+
+	constexpr ColourRGB( const ColourRGB& ) noexcept = default;
+
+	// access
+
+	constexpr T& operator[]( index_type index ) noexcept
+	{
+		dbExpects( index < size() );
+		return data()[ index ];
+	}
+
+	constexpr const T& operator[]( index_type index ) const noexcept
+	{
+		dbExpects( index < size() );
+		return data()[ index ];
+	}
+
+	constexpr T* data() noexcept { return &r; }
+	constexpr const T* data() const noexcept { return &r; }
+	constexpr size_t size() const noexcept { return 3; }
+
+	// comparison
+
+	friend constexpr bool operator==( const ColourRGB& lhs, const ColourRGB& rhs ) noexcept
+	{
+		return lhs.r == rhs.r &&
+			lhs.g == rhs.g &&
+			lhs.b == rhs.b;
+	}
+
+	friend constexpr bool operator!=( const ColourRGB& lhs, const ColourRGB& rhs ) noexcept
+	{
+		return !( lhs == rhs );
+	}
+
+	// basic colours
+
+	static constexpr ColourRGB Black() noexcept { return ColourRGB( Zero ); }
+	static constexpr ColourRGB White() noexcept { return ColourRGB( Max ); }
+
+	static constexpr ColourRGB DarkGrey() noexcept { return ColourRGB( Max / 4 ); }
+	static constexpr ColourRGB Grey() noexcept { return ColourRGB( Max / 2 ); }
+	static constexpr ColourRGB LightGrey() noexcept { return ColourRGB( ( Max / 4 ) * 3 ); }
+
+	static constexpr ColourRGB Red() noexcept { return ColourRGB( Max, Zero, Zero ); }
+	static constexpr ColourRGB Green() noexcept { return ColourRGB( Zero, Max, Zero ); }
+	static constexpr ColourRGB Blue() noexcept { return ColourRGB( Zero, Zero, Max ); }
+
+	static constexpr ColourRGB Yellow() noexcept { return ColourRGB( Max, Max, Zero ); }
+	static constexpr ColourRGB Cyan() noexcept { return ColourRGB( Zero, Max, Max ); }
+	static constexpr ColourRGB Magenta() noexcept { return ColourRGB( Max, Zero, Max ); }
+
+	static constexpr ColourRGB Orange() noexcept { return ColourRGB( Max, Max / 2, Zero ); }
+	static constexpr ColourRGB Violet() noexcept { return ColourRGB( Max / 2, Zero, Max ); }
+	static constexpr ColourRGB Purple() noexcept { return ColourRGB( Max / 2, Zero, Max / 2 ); }
+
+	// member data
+
+	T r;
+	T g;
+	T b;
+};
+
+template <typename T>
+class ColourRGBA
+{
+	static_assert( std::is_arithmetic_v<T>, "T must be a numeric type" );
+
+public:
+	using value_type = T;
+	using index_type = std::size_t;
+
+	static constexpr T Max = std::is_floating_point_v<T> ? static_cast<T>( 1 ) : std::numeric_limits<T>::max();
+	static constexpr T Zero = static_cast<T>( 0 );
+
+	// construction
+
+	ColourRGBA() noexcept = default;
+
+	constexpr explicit ColourRGBA( T red, T green, T blue, T alpha = Max ) noexcept
 		: r{ red }
 		, g{ green }
 		, b{ blue }
 		, a{ alpha }
 	{}
 
-	constexpr Colour( T rgb, T alpha = Max ) noexcept
+	constexpr explicit ColourRGBA( T rgb, T alpha = Max ) noexcept
 		: r{ rgb }
 		, g{ rgb }
 		, b{ rgb }
 		, a{ alpha }
 	{}
 
-	constexpr Colour( const Colour& ) noexcept = default;
+	constexpr ColourRGBA( const ColourRGBA& ) noexcept = default;
+
+	constexpr explicit ColourRGBA( const ColourRGB& other, T alpha = Max ) noexcept
+		: r{ other.r }
+		, g{ other.g }
+		, b{ other.b }
+		, a{ alpha }
+	{}
 
 	// access
 
 	constexpr T& operator[]( index_type index ) noexcept
 	{
-		dbExpects( index < 4 );
-		return ( &r )[ index ];
+		dbExpects( index < size() );
+		return data()[ index ];
 	}
 
 	constexpr const T& operator[]( index_type index ) const noexcept
 	{
-		dbExpects( index < 4 );
-		return ( &r )[ index ];
+		dbExpects( index < size() );
+		return data()[ index ];
 	}
+
+	constexpr T* data() noexcept { return &r; }
+	constexpr const T* data() const noexcept { return &r; }
+	constexpr size_t size() const noexcept { return 4; }
 
 	// comparison
 
-	friend constexpr bool operator==( const Colour& lhs, const Colour& rhs ) noexcept
+	friend constexpr bool operator==( const ColourRGBA& lhs, const ColourRGBA& rhs ) noexcept
 	{
 		return lhs.r == rhs.r &&
 			lhs.g == rhs.g &&
@@ -65,31 +166,31 @@ public:
 			lhs.a == rhs.a;
 	}
 
-	friend constexpr bool operator!=( const Colour& lhs, const Colour& rhs ) noexcept
+	friend constexpr bool operator!=( const ColourRGBA& lhs, const ColourRGBA& rhs ) noexcept
 	{
 		return !( lhs == rhs );
 	}
 
 	// basic colours
 
-	static constexpr Colour Black() noexcept { return Colour( Zero ); }
-	static constexpr Colour White() noexcept { return Colour( Max ); }
+	static constexpr ColourRGBA Black() noexcept { return ColourRGBA( Zero ); }
+	static constexpr ColourRGBA White() noexcept { return ColourRGBA( Max ); }
 	
-	static constexpr Colour DarkGrey() noexcept { return Colour( Max / 4 ); }
-	static constexpr Colour Grey() noexcept { return Colour( Max / 2 ); }
-	static constexpr Colour LightGrey() noexcept { return Colour( ( Max / 4 ) * 3 ); }
+	static constexpr ColourRGBA DarkGrey() noexcept { return ColourRGBA( Max / 4 ); }
+	static constexpr ColourRGBA Grey() noexcept { return ColourRGBA( Max / 2 ); }
+	static constexpr ColourRGBA LightGrey() noexcept { return ColourRGBA( ( Max / 4 ) * 3 ); }
 
-	static constexpr Colour Red() noexcept { return Colour( Max, Zero, Zero ); }
-	static constexpr Colour Green() noexcept { return Colour( Zero, Max, Zero ); }
-	static constexpr Colour Blue() noexcept { return Colour( Zero, Zero, Max ); }
+	static constexpr ColourRGBA Red() noexcept { return ColourRGBA( Max, Zero, Zero ); }
+	static constexpr ColourRGBA Green() noexcept { return ColourRGBA( Zero, Max, Zero ); }
+	static constexpr ColourRGBA Blue() noexcept { return ColourRGBA( Zero, Zero, Max ); }
 
-	static constexpr Colour Yellow() noexcept { return Colour( Max, Max, Zero ); }
-	static constexpr Colour Cyan() noexcept { return Colour( Zero, Max, Max ); }
-	static constexpr Colour Magenta() noexcept { return Colour( Max, Zero, Max ); }
+	static constexpr ColourRGBA Yellow() noexcept { return ColourRGBA( Max, Max, Zero ); }
+	static constexpr ColourRGBA Cyan() noexcept { return ColourRGBA( Zero, Max, Max ); }
+	static constexpr ColourRGBA Magenta() noexcept { return ColourRGBA( Max, Zero, Max ); }
 
-	static constexpr Colour Orange() noexcept { return Colour( Max, Max / 2, Zero ); }
-	static constexpr Colour Violet() noexcept { return Colour( Max / 2, Zero, Max ); }
-	static constexpr Colour Purple() noexcept { return Colour( Max / 2, Zero, Max / 2 ); }
+	static constexpr ColourRGBA Orange() noexcept { return ColourRGBA( Max, Max / 2, Zero ); }
+	static constexpr ColourRGBA Violet() noexcept { return ColourRGBA( Max / 2, Zero, Max ); }
+	static constexpr ColourRGBA Purple() noexcept { return ColourRGBA( Max / 2, Zero, Max / 2 ); }
 
 	// member data
 
@@ -100,11 +201,23 @@ public:
 };
 
 template <typename T>
-constexpr Colour<T> ColourFromRGBACode( uint32_t rgba ) noexcept
+constexpr ColourRGB<T> ColourFromRGBCode( uint32_t rgb ) noexcept
 {
-	constexpr T Ratio = Colour<T>::Max / static_cast<T>( 255 );
+	constexpr T Ratio = ColourRGB<T>::Max / static_cast<T>( 255 );
 
-	return Colour(
+	return ColourRGB(
+		static_cast<T>( rgb >> 16 ) * Ratio,
+		static_cast<T>( rgb >> 8 ) * Ratio,
+		static_cast<T>( rgb ) * Ratio
+	);
+}
+
+template <typename T>
+constexpr ColourRGBA<T> ColourFromRGBACode( uint32_t rgba ) noexcept
+{
+	constexpr T Ratio = ColourRGBA<T>::Max / static_cast<T>( 255 );
+
+	return ColourRGBA(
 		static_cast<T>( rgba >> 24 ) * Ratio,
 		static_cast<T>( rgba >> 16 ) * Ratio,
 		static_cast<T>( rgba >> 8 ) * Ratio,
@@ -113,10 +226,22 @@ constexpr Colour<T> ColourFromRGBACode( uint32_t rgba ) noexcept
 }
 
 template <typename T>
-constexpr uint32_t ColourToRGBACode( const Colour<T>& c ) noexcept
+constexpr uint32_t ColourToRGBCode( const ColourRGB<T>& c ) noexcept
 {
-	constexpr T Max = Colour<T>::Max;
-	constexpr T Zero = Colour<T>::Zero;
+	constexpr T Max = ColourRGB<T>::Max;
+	constexpr T Zero = ColourRGB<T>::Zero;
+	constexpr T InvRatio = Max / static_cast<T>( 255 );
+
+	return ( static_cast<uint8_t>( std::clamp( c.r, Zero, Max ) / InvRatio ) << 16 ) |
+		( static_cast<uint8_t>( std::clamp( c.g, Zero, Max ) / InvRatio ) << 8 ) |
+		( static_cast<uint8_t>( std::clamp( c.b, Zero, Max ) / InvRatio ) );
+}
+
+template <typename T>
+constexpr uint32_t ColourToRGBACode( const ColourRGBA<T>& c ) noexcept
+{
+	constexpr T Max = ColourRGBA<T>::Max;
+	constexpr T Zero = ColourRGBA<T>::Zero;
 	constexpr T InvRatio = Max / static_cast<T>( 255 );
 
 	return ( static_cast<uint8_t>( std::clamp( c.r, Zero, Max ) / InvRatio ) << 24 ) |
@@ -126,15 +251,15 @@ constexpr uint32_t ColourToRGBACode( const Colour<T>& c ) noexcept
 }
 
 template <typename To, typename From>
-constexpr Colour<To> ColourCast( const Colour<From>& from ) noexcept
+constexpr ColourRGB<To> ColourCast( const ColourRGB<From>& from ) noexcept
 {
 	if constexpr ( std::is_integral_v<To> &&
 		std::is_integral_v<From> &&
-		static_cast<std::make_unsigned_t<To>>( Colour<To>::Max ) < static_cast<std::make_unsigned_t<From>>( Colour<From>::Max ) )
+		static_cast<std::make_unsigned_t<To>>( ColourRGB<To>::Max ) < static_cast<std::make_unsigned_t<From>>( ColourRGB<From>::Max ) )
 	{
-		constexpr auto InvRatio = Colour<From>::Max / Colour<To>::Max;
+		constexpr auto InvRatio = ColourRGB<From>::Max / ColourRGB<To>::Max;
 
-		return Colour{
+		return ColourRGB{
 			static_cast<To>( from.r / InvRatio ),
 			static_cast<To>( from.g / InvRatio ),
 			static_cast<To>( from.b / InvRatio ),
@@ -142,9 +267,36 @@ constexpr Colour<To> ColourCast( const Colour<From>& from ) noexcept
 	}
 	else
 	{
-		constexpr auto Ratio = Colour<To>::Max / Colour<From>::Max;
+		constexpr auto Ratio = ColourRGB<To>::Max / ColourRGB<From>::Max;
 
-		return Colour{
+		return ColourRGB{
+			static_cast<To>( from.r * Ratio ),
+			static_cast<To>( from.g * Ratio ),
+			static_cast<To>( from.b * Ratio ),
+			static_cast<To>( from.a * Ratio ) };
+	}
+}
+
+template <typename To, typename From>
+constexpr ColourRGBA<To> ColourCast( const ColourRGBA<From>& from ) noexcept
+{
+	if constexpr ( std::is_integral_v<To> &&
+		std::is_integral_v<From> &&
+		static_cast<std::make_unsigned_t<To>>( ColourRGBA<To>::Max ) < static_cast<std::make_unsigned_t<From>>( ColourRGBA<From>::Max ) )
+	{
+		constexpr auto InvRatio = ColourRGBA<From>::Max / ColourRGBA<To>::Max;
+
+		return ColourRGBA{
+			static_cast<To>( from.r / InvRatio ),
+			static_cast<To>( from.g / InvRatio ),
+			static_cast<To>( from.b / InvRatio ),
+			static_cast<To>( from.a / InvRatio ) };
+	}
+	else
+	{
+		constexpr auto Ratio = ColourRGBA<To>::Max / ColourRGBA<From>::Max;
+
+		return ColourRGBA{
 			static_cast<To>( from.r * Ratio ),
 			static_cast<To>( from.g * Ratio ),
 			static_cast<To>( from.b * Ratio ),
@@ -153,49 +305,84 @@ constexpr Colour<To> ColourCast( const Colour<From>& from ) noexcept
 }
 
 template <typename T>
-constexpr Colour<T> ColourInvert( const Colour<T>& c ) noexcept
+constexpr ColourRGB<T> ColourInvert( const ColourRGB<T>& c ) noexcept
 {
-	constexpr T Max = Colour<T>::Max;
-	return Colour{ Max - c.r, Max - c.g, Max - c.b, c.a };
+	constexpr T Max = ColourRGB<T>::Max;
+	return ColourRGB{ Max - c.r, Max - c.g, Max - c.b };
 }
 
 template <typename T>
-constexpr T ColourIntensity( const Colour<T>& c ) noexcept
+constexpr ColourRGBA<T> ColourInvert( const ColourRGBA<T>& c ) noexcept
 {
-	return static_cast<T>( ( c.r * 0.3 + c.g * 0.59 + c.b * 0.11 ) * c.a / Colour<T>::Max );
+	constexpr T Max = ColourRGBA<T>::Max;
+	return ColourRGBA{ Max - c.r, Max - c.g, Max - c.b, c.a };
 }
 
 template <typename T>
-constexpr Colour<T> ColourGreyScale( const Colour<T>& c ) noexcept
+constexpr T ColourIntensity( const ColourRGB<T>& c ) noexcept
+{
+	return static_cast<T>( c.r * 0.3 + c.g * 0.59 + c.b * 0.11 );
+}
+
+template <typename T>
+constexpr T ColourIntensity( const ColourRGBA<T>& c ) noexcept
+{
+	return static_cast<T>( c.r * 0.3 + c.g * 0.59 + c.b * 0.11 );
+}
+
+template <typename T>
+constexpr ColourRGB<T> ColourGreyScale( const ColourRGB<T>& c ) noexcept
 {
 	const T grey = Intensity( c );
-	return Colour<T>{ grey, grey, grey, c.a };
+	return ColourRGBA<T>{ grey, grey, grey };
 }
 
 template <typename T>
-constexpr Colour<T> ColourSepia( const Colour<T>& c ) noexcept
+constexpr ColourRGBA<T> ColourGreyScale( const ColourRGBA<T>& c ) noexcept
+{
+	const T grey = Intensity( c );
+	return ColourRGBA<T>{ grey, grey, grey, c.a };
+}
+
+template <typename T>
+constexpr ColourRGB<T> ColourSepia( const ColourRGB<T>& c ) noexcept
 {
 	// sepia multipiers recommended by Microsoft
 
-	constexpr double Max = static_cast<double>( Colour<T>::Max );
+	constexpr double Max = static_cast<double>( ColourRGB<T>::Max );
 
-	return Colour<T>
+	return ColourRGB<T>
 	{
-		static_cast<T>( (std::min)( c.r * 0.393 + c.g * 0.769 + c.b * 0.189, Max ) ),
-		static_cast<T>( (std::min)( c.r * 0.349 + c.g * 0.686 + c.b * 0.168, Max ) ),
-		static_cast<T>( (std::min)( c.r * 0.272 + c.g * 0.534 + c.b * 0.131, Max ) ),
+		static_cast<T>( ( std::min )( c.r * 0.393 + c.g * 0.769 + c.b * 0.189, Max ) ),
+		static_cast<T>( ( std::min )( c.r * 0.349 + c.g * 0.686 + c.b * 0.168, Max ) ),
+		static_cast<T>( ( std::min )( c.r * 0.272 + c.g * 0.534 + c.b * 0.131, Max ) )
+	};
+}
+
+template <typename T>
+constexpr ColourRGBA<T> ColourSepia( const ColourRGBA<T>& c ) noexcept
+{
+	// sepia multipiers recommended by Microsoft
+
+	constexpr double Max = static_cast<double>( ColourRGBA<T>::Max );
+
+	return ColourRGBA<T>
+	{
+		static_cast<T>( ( std::min )( c.r * 0.393 + c.g * 0.769 + c.b * 0.189, Max ) ),
+		static_cast<T>( ( std::min )( c.r * 0.349 + c.g * 0.686 + c.b * 0.168, Max ) ),
+		static_cast<T>( ( std::min )( c.r * 0.272 + c.g * 0.534 + c.b * 0.131, Max ) ),
 		c.a
 	};
 }
 
 template <typename T>
-constexpr Colour<T> ColourBlend( const Colour<T>& dest, const Colour<T>& src ) noexcept
+constexpr ColourRGBA<T> ColourBlend( const ColourRGBA<T>& dest, const ColourRGBA<T>& src ) noexcept
 {
-	constexpr T Max = Colour<T>::Max;
+	constexpr T Max = ColourRGBA<T>::Max;
 
 	const T inv_src_a = src.a - Max;
 
-	return Colour
+	return ColourRGBA
 	{
 		static_cast<T>( ( src.r * src.a ) / Max + ( dest.r * inv_src_a * dest.a ) / ( Max * Max ) ),
 		static_cast<T>( ( src.g * src.a ) / Max + ( dest.g * inv_src_a * dest.a ) / ( Max * Max ) ),
@@ -204,13 +391,26 @@ constexpr Colour<T> ColourBlend( const Colour<T>& dest, const Colour<T>& src ) n
 	};
 }
 
+using ColourRGB8 = ColourRGB<uint8_t>;
+using ColourRGBA8 = ColourRGBA<uint8_t>;
+
+}
+
 namespace std
 {
+	template<typename T>
+	constexpr Math::ColourRGB<T> max( const Math::ColourRGB<T>& lhs, const Math::ColourRGB<T>& rhs ) noexcept
+	{
+		return ColourRGB<T>(
+			( std::max )( lhs.r, rhs.r ),
+			( std::max )( lhs.g, rhs.g ),
+			( std::max )( lhs.b, rhs.b ) );
+	}
 
 	template<typename T>
-	Colour<T> max( const Colour<T>& lhs, const Colour<T>& rhs ) noexcept
+	constexpr Math::ColourRGBA<T> max( const Math::ColourRGBA<T>& lhs, const Math::ColourRGBA<T>& rhs ) noexcept
 	{
-		return Colour<T>(
+		return ColourRGBA<T>(
 			( std::max )( lhs.r, rhs.r ),
 			( std::max )( lhs.g, rhs.g ),
 			( std::max )( lhs.b, rhs.b ),
@@ -218,18 +418,69 @@ namespace std
 	}
 
 	template<typename T>
-	Colour<T> min( const Colour<T>& lhs, const Colour<T>& rhs ) noexcept
+	constexpr Math::ColourRGB<T> min( const Math::ColourRGB<T>& lhs, const Math::ColourRGB<T>& rhs ) noexcept
 	{
-		return Colour<T>(
+		return ColourRGB<T>(
+			( std::min )( lhs.r, rhs.r ),
+			( std::min )( lhs.g, rhs.g ),
+			( std::min )( lhs.b, rhs.b ) );
+	}
+
+	template<typename T>
+	constexpr Math::ColourRGBA<T> min( const Math::ColourRGBA<T>& lhs, const Math::ColourRGBA<T>& rhs ) noexcept
+	{
+		return ColourRGBA<T>(
 			( std::min )( lhs.r, rhs.r ),
 			( std::min )( lhs.g, rhs.g ),
 			( std::min )( lhs.b, rhs.b ),
 			( std::min )( lhs.a, rhs.a ) );
 	}
 
-}
+	template <typename T>
+	constexpr Math::ColourRGB<T> lerp( const Math::ColourRGB<T>& a, const Math::ColourRGB<T>& b, double t ) noexcept
+	{
+		if constexpr ( std::is_integral_v<T> )
+		{
+			return Math::ColourRGB
+			{
+				static_cast<T>( std::round( std::lerp( a.r, b.r, t ) ) ),
+				static_cast<T>( std::round( std::lerp( a.g, b.g, t ) ) ),
+				static_cast<T>( std::round( std::lerp( a.b, b.b, t ) ) )
+			};
+		}
+		else
+		{
+			return Math::ColourRGB
+			{
+				static_cast<T>( std::lerp( a.r, b.r, t ) ),
+				static_cast<T>( std::lerp( a.g, b.g, t ) ),
+				static_cast<T>( std::lerp( a.b, b.b, t ) )
+			};
+		}
+	}
 
-using Colourf = Colour<float>;
-using Colour32 = Colour<uint8_t>;
-
+	template <typename T>
+	constexpr Math::ColourRGBA<T> lerp( const Math::ColourRGBA<T>& a, const Math::ColourRGBA<T>& b, double t ) noexcept
+	{
+		if constexpr ( std::is_integral_v<T> )
+		{
+			return Math::ColourRGBA
+			{
+				static_cast<T>( std::round( std::lerp( a.r, b.r, t ) ) ),
+				static_cast<T>( std::round( std::lerp( a.g, b.g, t ) ) ),
+				static_cast<T>( std::round( std::lerp( a.b, b.b, t ) ) ),
+				static_cast<T>( std::round( std::lerp( a.a, b.a, t ) ) )
+			};
+		}
+		else
+		{
+			return Math::ColourRGBA
+			{
+				static_cast<T>( std::lerp( a.r, b.r, t ) ),
+				static_cast<T>( std::lerp( a.g, b.g, t ) ),
+				static_cast<T>( std::lerp( a.b, b.b, t ) ),
+				static_cast<T>( std::lerp( a.a, b.a, t ) )
+			};
+		}
+	}
 }

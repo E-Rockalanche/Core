@@ -260,19 +260,47 @@ class enum_bitset
 public:
 	static_assert( is_bitset_enum_v<E>, "enum must be a bitset" );
 
+	class reference
+	{
+	public:
+		constexpr reference() noexcept = default;
+		constexpr reference( const reference& ) noexcept = default;
+		constexpr reference( enum_bitset& bitset, E flags ) noexcept : m_bitset{ &bitset }, m_flags{ flags } {}
+
+		constexpr reference& operator=( bool value ) noexcept
+		{
+			dbExpects( m_bitset );
+			m_bitset->set( m_flags, value );
+		}
+
+		constexpr operator bool() const noexcept
+		{
+			dbExpects( m_bitset );
+			return m_bitset->test_any( m_flags );
+		}
+
+	private:
+		enum_bitset* m_bitset = nullptr;
+		E m_flags = E{};
+	};
+
 	constexpr enum_bitset() noexcept = default;
-	constexpr enum_bitset( E value ) noexcept : m_value{ value } {}
+	constexpr enum_bitset( E flags ) noexcept : m_value{ flags } {}
 	constexpr enum_bitset( const enum_bitset& other ) noexcept = default;
 
 	constexpr size_t count() const noexcept { return stdx::popcount( m_value ); }
 
 	constexpr size_t size() const noexcept { return sizeof( E ) * 8; } // TODO: use enum reflection
 
-	constexpr bool test_any( E value ) const noexcept { return ( m_value & value ) != static_cast<E>( 0 ); }
+	constexpr reference operator[]( E flags ) noexcept { return reference{ *this, flags }; }
 
-	constexpr bool test_none( E value ) const noexcept { return ( m_value & value ) == static_cast<E>( 0 ); }
+	constexpr bool operator[]( E flags ) const noexcept { return test_any( flags ); }
 
-	constexpr bool test_all( E value ) const noexcept { return ( m_value & value ) == value; }
+	constexpr bool test_any( E flags ) const noexcept { return ( m_value & flags ) != static_cast<E>( 0 ); }
+
+	constexpr bool test_none( E flags ) const noexcept { return ( m_value & flags ) == static_cast<E>( 0 ); }
+
+	constexpr bool test_all( E flags ) const noexcept { return ( m_value & flags ) == flags; }
 
 	constexpr bool any() const noexcept { return m_value != static_cast<E>( 0 ); }
 
@@ -286,12 +314,12 @@ public:
 		return *this;
 	}
 
-	constexpr enum_bitset& set( E bits, bool value = true ) noexcept
+	constexpr enum_bitset& set( E flags, bool value = true ) noexcept
 	{
 		if ( value )
-			m_value |= bits;
+			m_value |= flags;
 		else
-			m_value &= ~bits;
+			m_value &= ~flags;
 
 		return *this;
 	}
@@ -302,9 +330,9 @@ public:
 		return *this;
 	}
 
-	constexpr enum_bitset& reset( E bits ) noexcept
+	constexpr enum_bitset& reset( E flags ) noexcept
 	{
-		m_value &= ~bits;
+		m_value &= ~flags;
 		return *this;
 	}
 
@@ -314,9 +342,9 @@ public:
 		return *this;
 	}
 
-	constexpr enum_bitset& flip( E bits ) noexcept
+	constexpr enum_bitset& flip( E flags ) noexcept
 	{
-		m_value ^= bits;
+		m_value ^= flags;
 		return *this;
 	}
 
@@ -333,15 +361,15 @@ public:
 
 	constexpr unsigned long to_ulong() const noexcept
 	{
-		return narrow_cast<unsigned long>( m_value );
+		static_assert( sizeof( unsigned long ) >= sizeof( E ) );
+		return static_cast<unsigned long>( m_value );
 	}
 
 	constexpr unsigned long long to_ullong() const noexcept
 	{
-		return narrow_cast<unsigned long long>( m_value );
+		static_assert( sizeof( unsigned long long ) >= sizeof( E ) );
+		return static_cast<unsigned long long>( m_value );
 	}
-
-	constexpr E value() const noexcept { return m_value; }
 
 	// operators
 

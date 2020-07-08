@@ -162,13 +162,11 @@
     <ClInclude Include="inc\stdx\fixed_string.h" />
     <ClInclude Include="inc\stdx\flat_map.h" />
     <ClInclude Include="inc\stdx\flat_set.h" />
-    <ClInclude Include="inc\stdx\fnvhash.h" />
     <ClInclude Include="inc\stdx\format.h" />
     <ClInclude Include="inc\stdx\int.h" />
     <ClInclude Include="inc\stdx\math.h" />
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
-    <ClInclude Include="inc\stdx\polymorphic.h" />
     <ClInclude Include="inc\stdx\priority_queue.h" />
     <ClInclude Include="inc\stdx\random.h" />
     <ClInclude Include="inc\stdx\reflection.h" />

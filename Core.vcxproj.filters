@@ -91,9 +91,6 @@
     <ClInclude Include="inc\Math\Colour.h">
       <Filter>inc\Math</Filter>
     </ClInclude>
-    <ClInclude Include="inc\stdx\fnvhash.h">
-      <Filter>inc\stdx</Filter>
-    </ClInclude>
     <ClInclude Include="inc\stdx\basic_int.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
@@ -110,9 +107,6 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="inc\stdx\utility.h">
-      <Filter>inc\stdx</Filter>
-    </ClInclude>
-    <ClInclude Include="inc\stdx\polymorphic.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
     <ClInclude Include="inc\stdx\priority_queue.h">
