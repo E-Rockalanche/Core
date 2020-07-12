@@ -1,8 +1,11 @@
 #pragma once
 
-#ifdef _DEBUG
+#if defined( _DEBUG ) || true
 
 #include <cstdio>
+
+#define MultiLineMacroBegin do{
+#define MultiLineMacroEnd }while( false )
 
 #define dbLog( ... ) do{	\
 	std::printf( __VA_ARGS__ );	\
@@ -13,38 +16,43 @@
 
 #define dbLogErrorLocation() dbLogToStdErr( "ERROR AT %s:%d:\n", __FILE__, __LINE__ )
 
-#define dbLogError( ... ) do{	\
+#define dbLogError( ... )	\
+	MultiLineMacroBegin	\
 	dbLogErrorLocation();	\
 	dbLogToStdErr(  __VA_ARGS__ );	\
 	dbLogToStdErr( "\n" );	\
-} while( false )
+	MultiLineMacroEnd
 
 #define dbBreak() __debugbreak()
 
-#define dbBreakMessage( ... ) do{\
+#define dbBreakMessage( ... )	\
+	MultiLineMacroBegin	\
 	dbLog( __VA_ARGS__ );	\
 	dbBreak();	\
-} while(false)
+	MultiLineMacroEnd
 
-#define dbAssertFail( message ) do{	\
+#define dbAssertFail( message )	\
+	MultiLineMacroBegin	\
 		dbLogErrorLocation();	\
 		dbLogToStdErr( "Assertion failed: " message );	\
-} while(false)
+	MultiLineMacroEnd
 
-#define dbAssert( condition ) do{	\
+#define dbAssert( condition )	\
+	MultiLineMacroBegin	\
 	if ( !( condition ) ) {	\
 		dbAssertFail( #condition );	\
 		dbBreak();	\
 	}	\
-} while( false )
+	MultiLineMacroEnd
 
-#define dbAssertMessage( condition, ... ) do{	\
+#define dbAssertMessage( condition, ... )	\
+	MultiLineMacroBegin	\
 	if ( !( condition ) ) {	\
 		dbAssertFail( #condition );	\
 		dbLogToStdErr( __VA_ARGS__ );	\
 		dbBreak();	\
 	}	\
-} while( false )
+	MultiLineMacroEnd
 
 #define dbVerify( condition ) dbAssert( condition )
 
@@ -52,25 +60,32 @@
 
 // safe to use in constexpr function
 #define dbExpects( condition )	\
-	( ( condition ) ? (void)0 : (void)[]{ dbAssertFail( #condition ); } )
+	MultiLineMacroBegin	\
+	if ( !( condition ) )	\
+		dbAssertFail( #condition );	\
+	MultiLineMacroEnd
 
-// safe to use in constexpr function
 #define dbEnsures( condition )	\
-	( ( condition ) ? (void)0 : (void)[]{ dbAssertFail( #condition ); } )
+	MultiLineMacroBegin	\
+	if ( !( condition ) )	\
+		dbAssertFail( #condition );	\
+	MultiLineMacroEnd
 
 #else
 
-#define dbLog( ... )
-#define dbLogToStdErr( ... )
-#define dbLogErrorLocation()
-#define dbLogError( ... )
-#define dbBreak()
-#define dbBreakMessage( ... )
-#define dbAssert( condition )
-#define dbAssertMessage( condition, ... )
+#define EmptyBlock do{}while(false)
+
+#define dbLog( ... ) EmptyBlock
+#define dbLogToStdErr( ... ) EmptyBlock
+#define dbLogErrorLocation() EmptyBlock
+#define dbLogError( ... ) EmptyBlock
+#define dbBreak() EmptyBlock
+#define dbBreakMessage( ... ) EmptyBlock
+#define dbAssert( condition ) EmptyBlock
+#define dbAssertMessage( condition, ... ) EmptyBlock
 #define dbVerify( condition ) ( condition )
 #define dbVerifyMessage( condition, ... ) ( condition )
-#define dbExpects( condition )
-#define dbEnsures( condition )
+#define dbExpects( condition ) EmptyBlock
+#define dbEnsures( condition ) EmptyBlock
 
 #endif

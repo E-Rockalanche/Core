@@ -78,5 +78,9 @@ private:
 template <typename To, typename Tag, size_t I, size_t G, typename Base>
 constexpr To UniqueIdCast( UniqueId<Tag, I, G> id ) noexcept
 {
-	return To{ narrow_cast<To::base_type>( id.GetIndex() ), narrow_cast<To::base_type>( id.GetGeneration() ) };
+	return To
+	{
+		narrow_cast<To::base_type>( id.GetIndex() ),
+		narrow_cast<To::base_type>( id.GetGeneration() )
+	};
 }

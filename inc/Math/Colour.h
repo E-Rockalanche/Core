@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdx/algorithm.h>
 #include <stdx/assert.h>
 
 #include <limits>
@@ -131,7 +132,7 @@ public:
 
 	constexpr ColourRGBA( const ColourRGBA& ) noexcept = default;
 
-	constexpr explicit ColourRGBA( const ColourRGB& other, T alpha = Max ) noexcept
+	constexpr explicit ColourRGBA( const ColourRGB<T>& other, T alpha = Max ) noexcept
 		: r{ other.r }
 		, g{ other.g }
 		, b{ other.b }
@@ -360,6 +361,21 @@ constexpr ColourRGB<T> ColourSepia( const ColourRGB<T>& c ) noexcept
 }
 
 template <typename T>
+constexpr ColourRGB<T> ColourBlend( const ColourRGB<T>& dest, const ColourRGB<T>& src, T srcAlpha ) noexcept
+{
+	constexpr T Max = ColourRGB<T>::Max;
+
+	const T inv_src_a = Max - srcAlpha;
+
+	return ColourRGB
+	{
+		static_cast<T>( ( src.r * srcAlpha + dest.r * inv_src_a ) / Max ),
+		static_cast<T>( ( src.g * srcAlpha + dest.g * inv_src_a ) / Max ),
+		static_cast<T>( ( src.b * srcAlpha + dest.b * inv_src_a ) / Max )
+	};
+}
+
+template <typename T>
 constexpr ColourRGBA<T> ColourSepia( const ColourRGBA<T>& c ) noexcept
 {
 	// sepia multipiers recommended by Microsoft
@@ -380,13 +396,13 @@ constexpr ColourRGBA<T> ColourBlend( const ColourRGBA<T>& dest, const ColourRGBA
 {
 	constexpr T Max = ColourRGBA<T>::Max;
 
-	const T inv_src_a = src.a - Max;
+	const T inv_src_a = Max - src.a;
 
 	return ColourRGBA
 	{
-		static_cast<T>( ( src.r * src.a ) / Max + ( dest.r * inv_src_a * dest.a ) / ( Max * Max ) ),
-		static_cast<T>( ( src.g * src.a ) / Max + ( dest.g * inv_src_a * dest.a ) / ( Max * Max ) ),
-		static_cast<T>( ( src.b * src.a ) / Max + ( dest.b * inv_src_a * dest.a ) / ( Max * Max ) ),
+		static_cast<T>( ( src.r * src.a + ( dest.r * inv_src_a * dest.a ) / Max ) / Max ),
+		static_cast<T>( ( src.g * src.a + ( dest.g * inv_src_a * dest.a ) / Max ) / Max ),
+		static_cast<T>( ( src.b * src.a + ( dest.b * inv_src_a * dest.a ) / Max ) / Max ),
 		static_cast<T>( src.a + ( inv_src_a * dest.a ) / Max )
 	};
 }
@@ -401,7 +417,7 @@ namespace std
 	template<typename T>
 	constexpr Math::ColourRGB<T> max( const Math::ColourRGB<T>& lhs, const Math::ColourRGB<T>& rhs ) noexcept
 	{
-		return ColourRGB<T>(
+		return Math::ColourRGB<T>(
 			( std::max )( lhs.r, rhs.r ),
 			( std::max )( lhs.g, rhs.g ),
 			( std::max )( lhs.b, rhs.b ) );
@@ -410,7 +426,7 @@ namespace std
 	template<typename T>
 	constexpr Math::ColourRGBA<T> max( const Math::ColourRGBA<T>& lhs, const Math::ColourRGBA<T>& rhs ) noexcept
 	{
-		return ColourRGBA<T>(
+		return Math::ColourRGBA<T>(
 			( std::max )( lhs.r, rhs.r ),
 			( std::max )( lhs.g, rhs.g ),
 			( std::max )( lhs.b, rhs.b ),
@@ -420,7 +436,7 @@ namespace std
 	template<typename T>
 	constexpr Math::ColourRGB<T> min( const Math::ColourRGB<T>& lhs, const Math::ColourRGB<T>& rhs ) noexcept
 	{
-		return ColourRGB<T>(
+		return Math::ColourRGB<T>(
 			( std::min )( lhs.r, rhs.r ),
 			( std::min )( lhs.g, rhs.g ),
 			( std::min )( lhs.b, rhs.b ) );
@@ -429,58 +445,12 @@ namespace std
 	template<typename T>
 	constexpr Math::ColourRGBA<T> min( const Math::ColourRGBA<T>& lhs, const Math::ColourRGBA<T>& rhs ) noexcept
 	{
-		return ColourRGBA<T>(
+		return Math::ColourRGBA<T>(
 			( std::min )( lhs.r, rhs.r ),
 			( std::min )( lhs.g, rhs.g ),
 			( std::min )( lhs.b, rhs.b ),
 			( std::min )( lhs.a, rhs.a ) );
 	}
-
-	template <typename T>
-	constexpr Math::ColourRGB<T> lerp( const Math::ColourRGB<T>& a, const Math::ColourRGB<T>& b, double t ) noexcept
-	{
-		if constexpr ( std::is_integral_v<T> )
-		{
-			return Math::ColourRGB
-			{
-				static_cast<T>( std::round( std::lerp( a.r, b.r, t ) ) ),
-				static_cast<T>( std::round( std::lerp( a.g, b.g, t ) ) ),
-				static_cast<T>( std::round( std::lerp( a.b, b.b, t ) ) )
-			};
-		}
-		else
-		{
-			return Math::ColourRGB
-			{
-				static_cast<T>( std::lerp( a.r, b.r, t ) ),
-				static_cast<T>( std::lerp( a.g, b.g, t ) ),
-				static_cast<T>( std::lerp( a.b, b.b, t ) )
-			};
-		}
-	}
-
-	template <typename T>
-	constexpr Math::ColourRGBA<T> lerp( const Math::ColourRGBA<T>& a, const Math::ColourRGBA<T>& b, double t ) noexcept
-	{
-		if constexpr ( std::is_integral_v<T> )
-		{
-			return Math::ColourRGBA
-			{
-				static_cast<T>( std::round( std::lerp( a.r, b.r, t ) ) ),
-				static_cast<T>( std::round( std::lerp( a.g, b.g, t ) ) ),
-				static_cast<T>( std::round( std::lerp( a.b, b.b, t ) ) ),
-				static_cast<T>( std::round( std::lerp( a.a, b.a, t ) ) )
-			};
-		}
-		else
-		{
-			return Math::ColourRGBA
-			{
-				static_cast<T>( std::lerp( a.r, b.r, t ) ),
-				static_cast<T>( std::lerp( a.g, b.g, t ) ),
-				static_cast<T>( std::lerp( a.b, b.b, t ) ),
-				static_cast<T>( std::lerp( a.a, b.a, t ) )
-			};
-		}
-	}
 }
+
+static_assert( Math::ColourBlend( Math::ColourRGB8::White(), Math::ColourRGB8::White(), (uint8_t)255 ) == Math::ColourRGB8::White() );

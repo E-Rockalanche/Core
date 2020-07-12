@@ -3,11 +3,18 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <random>
 #include <type_traits>
 #include <utility>
 
 namespace stdx
 {
+
+template <typename T, typename U>
+constexpr T lerp( T lhs, T rhs, U x )
+{
+	return static_cast<T>( lhs + ( rhs - lhs ) * x );
+}
 
 template <class InputIt, class UnaryPredicate>
 constexpr bool all_of( InputIt first, const InputIt last, UnaryPredicate p )
@@ -562,4 +569,4 @@ constexpr std::pair<ForwardIt, ForwardIt>
 		std::upper_bound( first, last, value, comp ) );
 }
 
-}
+} // namespace stdx

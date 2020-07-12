@@ -2,57 +2,121 @@
 
 #include <stdx/bit.h>
 
+#include <algorithm>
+#include <limits>
 #include <random>
 
 namespace stdx {
 
-template <size_t StateSize = 4, uint32_t A = 987654366>
+template <typename RandomIt, typename URBG>
+auto random_element( RandomIt first, RandomIt last, URBG&& g ) -> typename std::iterator_traits<RandomIt>::reference
+{
+	const std::ptrdiff_t count = std::distance( first, last );
+	dbExpects( count > 0 );
+
+	std::uniform_int_distribution<std::ptrdiff_t> dist{ 0, count - 1 };
+	return first[ dist( g ) ];
+}
+
+template <typename T, std::size_t N,
+	std::enable_if_t<std::is_integral_v<T>, int> = 0>
+class strict_seed_seq
+{
+public:
+	using value_type = std::array<T, N>;
+
+	constexpr strict_seed_seq( value_type state ) noexcept : m_state{ state } {}
+
+	template <typename Generator>
+	constexpr strict_seed_seq( Generator& g ) noexcept
+	{
+		std::uniform_int_distribution<T> dist;
+		for ( auto& value : m_state )
+		{
+			value = dist( g );
+		}
+	}
+
+	template <typename It>
+	constexpr void generate( It first, It last ) noexcept
+	{
+		static_assert ( std::is_same_v<T, std::iterator_traits<It>::value_type> );
+		dbAssert( std::distance( first, last ) == N );
+
+		(void)last;
+		std::copy( m_state.begin(), m_state.end(), first );
+	}
+
+	constexpr std::size_t size() const noexcept
+	{
+		return m_state.size();
+	}
+
+private:
+	value_type m_state{};
+};
+
+template <size_t Lag, uint32_t Multiplier>
 class complimentary_multiply_with_carry_engine
 {
 public:
-	static_assert( StateSize > 0, "state size must be larger than 0" );
+	static_assert( Lag > 0, "lag must be larger than 0" );
 
 	using result_type = uint32_t;
+	using save_state = std::array<uint32_t, Lag + 2>;
 
-	static constexpr result_type min() noexcept { return 0; }
-	static constexpr result_type max() noexcept { return static_cast<result_type>( -1 ); }
+	static constexpr result_type min() noexcept { return std::numeric_limits<result_type>::min(); }
+	static constexpr result_type max() noexcept { return std::numeric_limits<result_type>::max(); }
 
-	static constexpr uint64_t multiplier = A;
 	static constexpr result_type default_seed = 0;
 
 	constexpr complimentary_multiply_with_carry_engine() noexcept
 		: complimentary_multiply_with_carry_engine( default_seed )
 	{}
 
-	constexpr explicit complimentary_multiply_with_carry_engine( result_type seed_ ) noexcept
+	constexpr explicit complimentary_multiply_with_carry_engine( result_type value ) noexcept
 	{
-		seed( seed_ );
+		seed( value );
 	}
 
-	constexpr void seed( result_type seed_ = default_seed ) noexcept
+	template <typename SeedSeq>
+	constexpr explicit complimentary_multiply_with_carry_engine( SeedSeq&& seq ) noexcept
 	{
-		std::seed_seq seq{ seed_ };
+		seed( seq );
+	}
+
+	constexpr explicit complimentary_multiply_with_carry_engine( save_state state ) noexcept
+	{
+		restore( state );
+	}
+
+	constexpr void seed( result_type value = default_seed ) noexcept
+	{
+		seed( std::seed_seq{ value } );
+	}
+
+	template <typename SeedSeq>
+	constexpr void seed( SeedSeq&& seq ) noexcept
+	{
 		seq.generate( std::begin( m_state ), std::end( m_state ) );
-		m_carry = static_cast<uint32_t>( ( m_state[ StateSize - 1 ] * multiplier ) >> 32 );
 	}
 
 	constexpr result_type operator()() noexcept
 	{
-		m_index = ( m_index + 1 ) % StateSize;
-		const uint64_t t = multiplier * m_state[ m_index ] + m_carry;
-		m_carry = static_cast<uint32_t>( t >> 32 );
-		const uint32_t x = static_cast<uint32_t>( t ) + m_carry;
-		if ( x < m_carry )
-		{
-			++x;
-			++m_carry;
-		}
+		m_index = ( m_index + 1 ) % Lag;
+		auto& carry = m_state[ Lag ];
+		const uint64_t t = static_cast<uint64_t>( Multiplier ) * m_state[ m_index ] + carry;
+		carry = static_cast<uint32_t>( t >> 32 );
+		uint32_t x = static_cast<uint32_t>( t ) + carry;
+		const bool inc = x < carry;
+		x += inc;
+		carry += inc;
 		return m_state[ m_index ] = 0xfffffffe - x;
 	}
 
 	constexpr void discard( unsigned long long z ) noexcept
 	{
-		for ( ; z-- > 0; )
+		while( z-- )
 		{
 			(void)operator();
 		}
@@ -60,7 +124,7 @@ public:
 
 	friend constexpr bool operator==( const complimentary_multiply_with_carry_engine& lhs, const complimentary_multiply_with_carry_engine& rhs ) noexcept
 	{
-		if ( lhs.m_carry != rhs.m_carry || lhs.m_index != rhs.m_index )
+		if ( lhs.m_index != rhs.m_index )
 			return false;
 
 		const auto[ lhsIt, rhsIt ] = std::mismatch( std::begin( lhs.m_state ), std::end( lhs.m_state ), std::begin( rhs.m_state ), std::end( rhs.m_state ) );
@@ -80,7 +144,7 @@ public:
 		{
 			os << value << ' ';
 		}
-		os << m_carry << ' ' << m_index;
+		os << m_index;
 		return os;
 	}
 
@@ -91,270 +155,290 @@ public:
 		{
 			is >> value;
 		}
-		is >> m_carry >> m_index;
+		is >> m_index;
 		return is;
 	}
 
+	save_state save() const noexcept
+	{
+		save_state state;
+		std::copy( m_state.begin(), m_state.end(), state.begin() );
+		state.back() = m_index;
+		return state;
+	}
+
+	void restore( save_state state ) noexcept
+	{
+		std::copy( state.begin(), state.end() - 1, m_state.begin() );
+		m_index = state.back();
+	}
+
 private:
-	uint32_t m_state[ StateSize ]{};
-	uint32_t m_carry = 0;
-	uint32_t m_index = StateSize - 1;
+	std::array<uint32_t, Lag + 1> m_state{}; // +1 for carry
+	uint32_t m_index = Lag - 1;
 };
 
+using cmwc4 = complimentary_multiply_with_carry_engine<4, 987654366>;
+using cmwc8 = complimentary_multiply_with_carry_engine<8, 987651386>;
+using cmwc16 = complimentary_multiply_with_carry_engine<16, 987651178>;
+using cmwc32 = complimentary_multiply_with_carry_engine<32, 987655670>;
+using cmwc64 = complimentary_multiply_with_carry_engine<64, 987651206>;
+using cmwc128 = complimentary_multiply_with_carry_engine<128, 987688302>;
+using cmwc256 = complimentary_multiply_with_carry_engine<256, 987662290>;
+using cmwc512 = complimentary_multiply_with_carry_engine<512, 123462658>;
+using cmwc1024 = complimentary_multiply_with_carry_engine<1024, 5555698>;
+using cmwc2048 = complimentary_multiply_with_carry_engine<2048, 1030770>;
+
+// adds stl random distributions as member functions to generator
 template <typename Generator>
-class rng_wrapper
+class rng_wrapper : public Generator
 {
+	template <typename A, typename... Bs>
+	static constexpr bool is_same_as_any_v = ( ... || std::is_same_v<A, Bs> );
+
+	// defines int types supported by stl random distributions
+	template <typename T>
+	static constexpr bool is_valid_int_v = is_same_as_any_v<T, short, int, long, long long, unsigned short, unsigned int, unsigned long, unsigned long long>;
+
+	// defines real types supported by stl random distributions
+	template <typename T>
+	static constexpr bool is_valid_real_v = is_same_as_any_v<T, float, double, long double>;
+
 public:
-	using result_type = typename Generator::result_type;
 
-	constexpr rng_wrapper() noexcept = default;
-
-	constexpr rng_wrapper( uint32_t seed ) noexcept : m_generator{ seed } {}
-
-	constexpr result_type operator()() noexcept
-	{
-		return m_generator();
-	}
+	using Generator::Generator;
 
 	/// Produces random integer values i, uniformly distributed on the closed interval [a, b]
 	template <typename T,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T uniform( T min = 0, T max = std::numeric_limits<T>::max() ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+	T uniform( T min = 0, T max = std::numeric_limits<T>::max() )
 	{
-		static_assert( sizeof( T ) > 1, "undefined behaviour" );
 		std::uniform_int_distribution<T> dist( min, max );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces random floating-point values i, uniformly distributed on the interval [a, b)
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-		constexpr T uniform( T min = 0, T max = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T uniform( T min = 0.0, T max = 1.0 )
 	{
 		std::uniform_real_distribution<T> dist( min, max );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces random boolean values, according to the discrete probability function
-	constexpr bool bernoulli( double p = 0.5 ) noexcept
+	bool bernoulli( double p = 0.5 )
 	{
 		std::bernoulli_distribution dist( p );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces a value which represents the number of successes in a sequence of t yes/no experiments, each of which succeeds with probability p
 	template <typename T,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T binomial( T t, double p = 0.5 ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T binomial( T t, double p = 0.5 )
 	{
-		static_assert( sizeof( T ) > 1, "undefined behaviour" );
 		std::binomial_distribution<T> dist( t, p );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces a value which represents the number of failures in a series of independent yes/no trials (each succeeds with probability p), before exactly k successes occur
 	template <typename T,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T negative_binomial( T k, double p = 0.5 ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T negative_binomial( T k, double p = 0.5 )
 	{
-		static_assert( sizeof( T ) > 1, "undefined behaviour" );
 		std::negative_binomial_distribution<T> dist( k, p );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces a value which represents the number of yes/no trials (each succeeding with probability p) which are necessary to obtain a single success
 	template <typename T,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T geometric( double probability = 0.5 ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T geometric( double probability = 0.5 )
 	{
-		static_assert( sizeof( T ) > 1, "undefined behaviour" );
 		std::geometric_distribution<T> dist( probability );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces a value which represents the probability of exactly i occurrences of a random event if the expected, mean number of its occurrence under the same conditions (on the same time/space interval) is u
 	template <typename T,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T poisson( double mean = 1 ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T poisson( double mean = 1.0 )
 	{
-		static_assert( sizeof( T ) > 1, "undefined behaviour" );
 		std::poisson_distribution<T> dist( mean );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces a value which represents the time/distance until the next random event if random events occur at constant rate lambda per unit of time/distance. For example, this distribution describes the time between the clicks of a Geiger counter or the distance between point mutations in a DNA strand
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T exponential( T lambda = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T exponential( T lambda = 1.0 )
 	{
 		std::exponential_distribution<T> dist( lambda );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// For floating-point alpha, the value obtained is the sum of alpha independent exponentially distributed random variables, each of which has a mean of beta
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T gamma( T alpha = 1, T beta = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T gamma( T alpha = 1.0, T beta = 1.0 )
 	{
 		std::gamma_distribution<T> dist( alpha, beta );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random numbers according to the Weibull distribution
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T weibull( T a = 1, T b = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T weibull( T a = 1.0, T b = 1.0 )
 	{
 		std::weibull_distribution<T> dist( a, b );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces random numbers according to the extreme value distribution (it is also known as Gumbel Type I, log-Weibull, Fisher-Tippett Type I)
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T extreme_value( T a = 0, T b = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T extreme_value( T a = 0.0, T b = 1.0 )
 	{
 		std::extreme_value_distribution<T> dist( a, b );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Generates random numbers according to the Normal (or Gaussian) random number distribution
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T normal( T mean = 0, T stddev = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T normal( T mean = 0.0, T stddev = 1.0 )
 	{
 		std::normal_distribution<T> dist( mean, stddev );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// The lognormal_distribution random number distribution produces random numbers x > 0 according to a log-normal distribution
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T lognormal( T mean = 0, T stddev = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T lognormal( T mean = 0.0, T stddev = 1.0 )
 	{
 		std::lognormal_distribution<T> dist( mean, stddev );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// The chi_squared_distribution produces random numbers x>0 according to the Chi-squared distribution
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T chi_squared( T n = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T chi_squared( T n = 1.0 )
 	{
 		std::chi_squared_distribution<T> dist( n );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces random numbers according to a Cauchy distribution (also called Lorentz distribution)
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T cauchy( T a = 0, T b = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T cauchy( T a = 0.0, T b = 1.0 )
 	{
 		std::cauchy_distribution<T> dist( a, b );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// Produces random numbers according to the f-distribution
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T fisher_f( T m = 1, T n = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T fisher_f( T m = 1.0, T n = 1.0 )
 	{
 		std::fisher_f_distribution<T> dist( m, n );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// This distribution is used when estimating the mean of an unknown normally distributed value given n+1 independent measurements, each with additive errors of unknown standard deviation, as in physical measurements. Or, alternatively, when estimating the unknown mean of a normal distribution with unknown standard deviation, given n+1 samples
 	template <typename T,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T student_t( T n = 1 ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T student_t( T n = 1.0 )
 	{
 		std::student_t_distribution<T> dist( n );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random integers on the interval [0, n), where the probability of each individual integer i is defined as w[i] / S, that is the weight of the ith integer divided by the sum of all n weights
 	template <typename T, typename InputIt,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T discrete( InputIt first, InputIt last ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T discrete( InputIt first, InputIt last )
 	{
 		std::discrete_distribution<T> dist( first, last );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random integers on the interval [0, n), where the probability of each individual integer i is defined as w[i] / S, that is the weight of the ith integer divided by the sum of all n weights
 	template <typename T,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T discrete( std::initializer_list<double> weights ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T discrete( std::initializer_list<double> weights )
 	{
 		std::discrete_distribution<T> dist( weights );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random integers on the interval [0, n), where the probability of each individual integer i is defined as w[i] / S, that is the weight of the ith integer divided by the sum of all n weights
 	template <typename T, typename UnaryOperation,
-		std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	constexpr T discrete( std::size_t count, double xmin, double xmax, UnaryOperation unary_op ) noexcept
+		std::enable_if_t<is_valid_int_v<T>, int> = 0>
+		T discrete( std::size_t count, double xmin, double xmax, UnaryOperation unary_op )
 	{
 		std::discrete_distribution<T> dist( count, xmin, xmax, unary_op );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random floating-point numbers, which are uniformly distributed within each of the several subintervals [b[i], b[i] + 1), each with its own weight w[i].The set of interval boundaries and the set of weights are the parameters of this distribution
 	template <typename T, typename InputIt1, typename InputIt2,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T piecewise_constant( InputIt1 first_i, InputIt1 last_i, InputIt2 first_w ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T piecewise_constant( InputIt1 first_i, InputIt1 last_i, InputIt2 first_w )
 	{
 		std::piecewise_constant_distribution<T> dist( first_i, last_i, first_w );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random floating-point numbers, which are uniformly distributed within each of the several subintervals [b[i], b[i] + 1), each with its own weight w[i].The set of interval boundaries and the set of weights are the parameters of this distribution
 	template <typename T, typename UnaryOperation,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T piecewise_constant( std::initializer_list<T> bl, UnaryOperation fw ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T piecewise_constant( std::initializer_list<T> bl, UnaryOperation fw )
 	{
 		std::piecewise_constant_distribution<T> dist( bl, fw );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random floating-point numbers, which are uniformly distributed within each of the several subintervals [b[i], b[i] + 1), each with its own weight w[i].The set of interval boundaries and the set of weights are the parameters of this distribution
 	template <typename T, typename UnaryOperation,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T piecewise_constant( std::size_t nw, T xmin, T xmax, UnaryOperation fw ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T piecewise_constant( std::size_t nw, T xmin, T xmax, UnaryOperation fw )
 	{
 		std::piecewise_constant_distribution<T> dist( nw, xmin, xmax, fw );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random floating-point numbers, which are distributed according to a linear probability density function within each of the several subintervals [b[i], b[i] + 1).The distribution is such that the probability density at each interval boundary is exactly the predefined value p[i]
 	template <typename T, typename InputIt1, typename InputIt2,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T piecewise_linear( InputIt1 first_i, InputIt1 last_i, InputIt2 first_w ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T piecewise_linear( InputIt1 first_i, InputIt1 last_i, InputIt2 first_w )
 	{
 		std::piecewise_linear_distribution<T> dist( first_i, last_i, first_w );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random floating-point numbers, which are distributed according to a linear probability density function within each of the several subintervals [b[i], b[i] + 1).The distribution is such that the probability density at each interval boundary is exactly the predefined value p[i]
 	template <typename T, typename UnaryOperation,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T piecewise_linear( std::initializer_list<T> bl, UnaryOperation fw ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T piecewise_linear( std::initializer_list<T> bl, UnaryOperation fw )
 	{
 		std::piecewise_linear_distribution<T> dist( bl, fw );
-		return dist( m_generator );
+		return dist( *this );
 	}
 
 	/// produces random floating-point numbers, which are distributed according to a linear probability density function within each of the several subintervals [b[i], b[i] + 1).The distribution is such that the probability density at each interval boundary is exactly the predefined value p[i]
 	template <typename T, typename UnaryOperation,
-		std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	constexpr T piecewise_linear( std::size_t nw, T xmin, T xmax, UnaryOperation fw ) noexcept
+		std::enable_if_t<is_valid_real_v<T>, int> = 0>
+		T piecewise_linear( std::size_t nw, T xmin, T xmax, UnaryOperation fw )
 	{
 		std::piecewise_linear_distribution<T> dist( nw, xmin, xmax, fw );
-		return dist( m_generator );
+		return dist( *this );
 	}
-
-private:
-	Generator m_generator;
 };
 
 } // namespace stdx

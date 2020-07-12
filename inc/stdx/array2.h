@@ -26,6 +26,8 @@ public:
 	using difference_type = std::ptrdiff_t;
 	using index_type = size_type;
 
+	// construction/assignment
+
 	array2() noexcept = default;
 
 	array2( size_type w, size_type h )
@@ -43,49 +45,72 @@ public:
 
 	array2( const array2& other )
 	{
-		overwriteAllocate( other.width(), other.height() );
+		overwriteAllocate( other.m_width, other.m_height );
 		std::copy( other.begin(), other.end(), begin() );
 	}
 
-	array2& operator=( array2&& other ) = default;
+	array2& operator=( array2&& other ) noexcept = default;
 
 	array2& operator=( const array2& other )
 	{
-		if ( m_width != other.width() && m_height != other.height() )
-			overwriteAllocate( other.width(), other.height() );
+		if ( m_width != other.m_width && m_height != other.m_height )
+			overwriteAllocate( other.m_width, other.m_height );
 
 		std::copy( other.begin(), other.end(), begin() );
+		return *this;
 	}
+
+	// access
+
+	pointer data() noexcept { return m_data.get(); }
+	const_pointer data() const noexcept { return m_data.get(); }
+
+	reference get( index_type x, index_type y ) noexcept
+	{
+		return m_data[ get_pos( x, y ) ];
+	}
+
+	const_reference get( index_type x, index_type y ) const noexcept
+	{
+		return m_data[ get_pos( x, y ) ];
+	}
+
+	// iterators
+
+	iterator begin() noexcept { return m_data.get(); }
+	iterator end() noexcept { return begin() + size(); }
+
+	const_iterator begin() const noexcept { return m_data.get(); }
+	const_iterator end() const noexcept { return begin() + size(); }
+
+	const_iterator cbegin() const noexcept { return begin(); }
+	const_iterator cend() const noexcept { return end(); }
+
+	reverse_iterator rbegin() noexcept { return end(); }
+	reverse_iterator rend() noexcept { return begin(); }
+
+	const_reverse_iterator rbegin() const noexcept { return end(); }
+	const_reverse_iterator rend() const noexcept { return begin(); }
+
+	const_reverse_iterator crbegin() const noexcept { return end(); }
+	const_reverse_iterator crend() const noexcept { return begin(); }
+
+	// capacity
 
 	size_type width() const noexcept { return m_width; }
 	size_type height() const noexcept { return m_height; }
 
-	T* data() noexcept { return m_data.get(); }
-	const T* data() const noexcept { return m_data.get(); }
-
 	size_type size() const noexcept { return m_width * m_height; }
 	difference_type ssize() const noexcept { return static_cast<difference_type>( m_width * m_height ); }
 
-	T& get( index_type x, index_type y ) noexcept
-	{
-		dbAssert( 0 <= x && x < m_width );
-		dbAssert( 0 <= y && y < m_height );
-		return m_data[ x + y * m_width ];
-	}
-
-	const T& get( index_type x, index_type y ) const noexcept
-	{
-		dbAssert( 0 <= x && x < m_width );
-		dbAssert( 0 <= y && y < m_height );
-		return m_data[ x + y * m_width ];
-	}
+	// modifiers
 
 	template <typename U>
 	void set( index_type x, index_type y, U&& value )
 	{
-		dbAssert( 0 <= x && x < m_width );
-		dbAssert( 0 <= y && y < m_height );
-		m_data[ x + y * m_width ] = std::forward<U>( value );
+		dbExpects( 0 <= x && x < m_width );
+		dbExpects( 0 <= y && y < m_height );
+		m_data[ get_pos( x, y ) ] = std::forward<U>( value );
 	}
 
 	void clear() noexcept
@@ -124,24 +149,6 @@ public:
 		}
 	}
 
-	iterator begin() noexcept { return m_data.get(); }
-	iterator end() noexcept { return begin() + size(); }
-
-	const_iterator begin() const noexcept { return m_data.get(); }
-	const_iterator end() const noexcept { return begin() + size(); }
-
-	const_iterator cbegin() const noexcept { return begin(); }
-	const_iterator cend() const noexcept { return end(); }
-
-	reverse_iterator rbegin() noexcept { return end(); }
-	reverse_iterator rend() noexcept { return begin(); }
-
-	const_reverse_iterator rbegin() const noexcept { return end(); }
-	const_reverse_iterator rend() const noexcept { return begin(); }
-
-	const_reverse_iterator crbegin() const noexcept { return end(); }
-	const_reverse_iterator crend() const noexcept { return begin(); }
-
 	void fill( const T& value )
 	{
 		for ( T& element : *this )
@@ -152,8 +159,8 @@ public:
 	{
 		dbAssert( left >= 0 );
 		dbAssert( top >= 0 );
-		dbAssert( left + w <= width() );
-		dbAssert( top + h <= height() );
+		dbAssert( left + w <= m_width );
+		dbAssert( top + h <= m_height );
 
 		const auto rowStart = begin() + ( top * m_width ) + left;
 		const auto rowEnd = rowStart + ( h * m_width );
@@ -166,18 +173,18 @@ public:
 
 	template <typename U>
 	void copy(
+		index_type destX,
+		index_type destY,
 		const array2<U>& other,
 		index_type left,
 		index_type top,
 		size_type w,
-		size_type h,
-		index_type destX,
-		index_type destY )
+		size_type h )
 	{
-		dbAssert( 0 <= left && left + w <= other.width() );
-		dbAssert( 0 <= top && top + h <= other.height() );
-		dbAssert( 0 <= destX && destX + w <= width() );
-		dbAssert( 0 <= destY && destY + h <= height() );
+		dbAssert( 0 <= left && left + w <= other.m_width );
+		dbAssert( 0 <= top && top + h <= other.m_height );
+		dbAssert( 0 <= destX && destX + w <= m_width );
+		dbAssert( 0 <= destY && destY + h <= m_height );
 
 		auto destRow = begin() + ( destY * m_width ) + destX;
 		const auto destRowEnd = destRow + ( h * m_width );
@@ -189,6 +196,41 @@ public:
 			std::copy( srcRow, srcRow + w, destRow );
 		}
 	}
+
+	// lookup
+
+	size_type get_x( size_type pos ) const noexcept
+	{
+		dbExpects( pos < size() );
+		return pos % m_width;
+	}
+
+	size_type get_y( size_type pos ) const noexcept
+	{
+		dbExpects( pos < size() );
+		return pos / m_width;
+	}
+
+	size_type get_x( const_iterator it ) const noexcept
+	{
+		return get_x( std::distance( begin(), it ) );
+	}
+
+	size_type get_y( const_iterator it ) const noexcept
+	{
+		return get_y( std::distance( begin(), it ) );
+	}
+
+	size_type get_pos( index_type x, index_type y ) const noexcept
+	{
+		dbExpects( x >= 0 );
+		dbExpects( x < m_width );
+		dbExpects( y >= 0 );
+		dbExpects( y < m_height );
+		return x + y * m_width;
+	}
+
+	// comparison
 
 	friend bool operator==( const array2& lhs, const array2& rhs )
 	{

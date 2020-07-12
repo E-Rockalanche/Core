@@ -44,7 +44,7 @@ class polymorphic_ptr
 	static_assert( !std::is_union_v<T>, "T cannot be a union" );
 
 	template <typename U>
-	static bool can_inline_v = ( sizeof( U ) <= LocalSize ) && std::is_trivially_copyable_v<U>;
+	static constexpr bool can_inline_v = ( sizeof( U ) <= LocalSize ) && std::is_trivially_copyable_v<U>;
 
 public:
 	using element_type = T;
@@ -171,7 +171,7 @@ public:
 
 	void swap( polymorphic_ptr& other ) noexcept
 	{
-		polymorphic_ptr temp{ std::move( *this ) }
+		polymorphic_ptr temp{ std::move( *this ) };
 		*this = std::move( other );
 		other = std::move( temp );
 	}
@@ -188,7 +188,7 @@ private:
 	}
 
 private:
-	BaseType* m_object = nullptr;
+	T* m_object = nullptr;
 	std::aligned_storage_t<LocalSize> m_buffer;
 };
 

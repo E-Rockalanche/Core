@@ -46,9 +46,6 @@
     <ClInclude Include="inc\stdx\enum.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
-    <ClInclude Include="inc\stdx\enum_iterator.h">
-      <Filter>inc\stdx</Filter>
-    </ClInclude>
     <ClInclude Include="inc\stdx\fixed_string.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
@@ -129,6 +126,18 @@
     </ClInclude>
     <ClInclude Include="inc\UniqueId.h">
       <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\zstring_view.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\dynamic_array.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\mdspan.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\iterator.h">
+      <Filter>inc\stdx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

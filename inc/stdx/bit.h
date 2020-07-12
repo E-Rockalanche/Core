@@ -9,6 +9,18 @@
 namespace stdx
 {
 
+template<typename E>
+constexpr std::size_t bit_sizeof() noexcept
+{
+	return sizeof( E ) * 8;
+}
+
+template<typename E>
+constexpr std::size_t bit_sizeof( const E& ) noexcept
+{
+	return bit_sizeof<E>();
+}
+
 namespace detail
 {
 	template <typename To, typename From>

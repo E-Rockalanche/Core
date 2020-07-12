@@ -38,6 +38,9 @@ namespace detail {
 
 	template <typename C>
 	using cursor_distance_to_t = decltype( std::declval<C>().distance_to( std::declval<C>() ) );
+
+	template <typename C>
+	using cursor_equal_t = decltype( std::declval<C>().equal( std::declval<C>() ) );
 }
 
 template <typename Cursor>
@@ -46,8 +49,10 @@ class basic_iterator
 public:
 	using reference = detected_t<detail::cursor_read_t, Cursor>;
 	using pointer = detected_t<detail::cursor_arrow_t, Cursor>;
-	using difference_type = detected_t<detail::cursor_distance_to_t, Cursor>;
+	using difference_type = detected_or_t<std::ptrdiff_t, detail::cursor_distance_to_t, Cursor>;
 	using size_type = std::make_unsigned_t<difference_type>;
+
+	static_assert( stdx::is_detected_v<detail::cursor_equal_t, Cursor>, "basic_iterator cursor must provide method \"bool equal( const Cursor& )\"" );
 
 	constexpr basic_iterator() noexcept = default;
 	constexpr basic_iterator( const basic_iterator& ) = default;
@@ -56,7 +61,7 @@ public:
 	constexpr basic_iterator( Cursor&& c ) noexcept : m_cursor{ std::move( c ) } {}
 
 	template <typename... Args>
-	constexpr basic_iterator( Args&&... args ) : m_cursor( std::forward<Args>( args )... ) {}
+	constexpr explicit basic_iterator( Args&&... args ) : m_cursor{ std::forward<Args>( args )... } {}
 
 	constexpr basic_iterator& operator=( const basic_iterator& ) noexcept = default;
 
@@ -69,7 +74,7 @@ public:
 	template <typename C = Cursor, std::enable_if_t<
 		is_detected_v<detail::cursor_advance_t, C> &&
 		is_detected_v<detail::cursor_read_t, C>, int> = 0>
-	constexpr reference operator[]( const size_type index ) const
+	constexpr reference operator[]( size_type index ) const
 	{
 		auto copy = basic_iterator( *this );
 		copy.advance( static_cast<difference_type>( index ) );

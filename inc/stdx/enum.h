@@ -1,12 +1,14 @@
 #pragma once
 
 #include <stdx/algorithm.h>
+#include <stdx/bit.h>
 #include <stdx/basic_iterator.h>
 #include <stdx/int.h>
 #include <stdx/reflection.h>
 #include <stdx/type_traits.h>
 
 #include <array>
+#include <cstdint>
 #include <optional>
 
 namespace stdx {
@@ -49,37 +51,71 @@ namespace detail {
 		return static_cast<std::size_t>( reflected_max<E>() - reflected_min<E>() + 1 );
 	}
 
+#pragma warning( push )
+#pragma warning( disable : 4293 )
+	// allow undefined behaviour of left shifting 1 to obtain value of 0
+
 	template <typename E, int... Is>
 	constexpr auto make_values( std::integer_sequence<int, Is...> ) noexcept
 	{
-		constexpr std::array<bool, sizeof...( Is )> test_results
+		if constexpr ( !is_bitset_enum_v<E> )
 		{
-			{ ( reflection::value_name_v<E, static_cast<E>( Is + reflected_min<E>() )>.size() != 0 )... }
-		};
-
-		constexpr int valid_count = ( test_results[ Is ] + ... );
-		std::array<E, valid_count> enum_values{};
-
-		for ( int test_index = 0, i = 0; i < valid_count; ++test_index )
-		{
-			if ( test_results[ test_index ] )
+			constexpr std::array<bool, sizeof...( Is )> test_results
 			{
-				enum_values[ i++ ] = static_cast<E>( test_index + reflected_min<E>() );
-			}
-		}
+				{ ( reflection::value_name_v<E, static_cast<E>( Is + reflected_min<E>() )>.size() != 0 )... }
+			};
 
-		return enum_values;
+			constexpr int valid_count = ( static_cast<int>( test_results[ Is ] ) + ... );
+			std::array<E, valid_count> enum_values{};
+
+			for ( int test_index = 0, i = 0; i < valid_count; ++test_index )
+			{
+				if ( test_results[ test_index ] )
+				{
+					enum_values[ i++ ] = static_cast<E>( test_index + reflected_min<E>() );
+				}
+			}
+
+			return enum_values;
+		}
+		else
+		{
+			using unsigned_type = std::make_unsigned_t<std::underlying_type_t<E>>;
+
+
+			constexpr std::array<bool, sizeof...( Is )> test_results
+			{
+				{ ( reflection::value_name_v<E, static_cast<E>( unsigned_type( 1 ) << Is )>.size() != 0 )... }
+			};
+
+			constexpr int valid_count = ( static_cast<int>( test_results[ Is ] ) + ... );
+			std::array<E, valid_count> enum_values{};
+
+			for ( int test_index = 0, i = 0; i < valid_count; ++test_index )
+			{
+				if ( test_results[ test_index ] )
+				{
+					enum_values[ i++ ] = static_cast<E>( unsigned_type( 1 ) << test_index );
+				}
+			}
+
+			return enum_values;
+		}
 	}
+
+#pragma warning( pop )
 }
 
 template <typename E>
 struct enum_values
 {
-	static constexpr auto value = detail::make_values<E>( std::make_integer_sequence<int, detail::reflected_size<E>()>{} );
+	static constexpr auto value = detail::make_values<E>( std::make_integer_sequence<int, is_bitset_enum_v<E> ? ( 1 + bit_sizeof<E>() ) : detail::reflected_size<E>()>{} );
 };
 
 template <typename E>
 constexpr auto enum_values_v = enum_values<E>::value;
+
+constexpr std::size_t enum_index_npos = std::numeric_limits<std::size_t>::max();
 
 template <typename E>
 constexpr std::size_t enum_count_v = enum_values_v<E>.size();
@@ -150,13 +186,13 @@ constexpr std::size_t enum_index( E value )
 		if ( *it == value )
 			return static_cast<std::size_t>( it - enum_values_v<E>.begin() );
 	}
-	return (std::size_t)-1;
+	return enum_index_npos;
 }
 
 template <typename E>
 constexpr bool enum_contains( E value ) noexcept
 {
-	return enum_index<E>( value ) != ( std::size_t ) - 1;
+	return enum_index<E>( value ) != enum_index_npos;
 }
 
 template <typename E>
@@ -196,8 +232,8 @@ constexpr std::optional<E> enum_cast( std::underlying_type_t<E> value ) noexcept
 template <typename E>
 constexpr std::string_view enum_name( E value ) noexcept
 {
-	const auto index = enum_index( value );
-	if ( index != (std::size_t)-1 )
+	const std::size_t index = enum_index( value );
+	if ( index != enum_index_npos )
 		return enum_names_v<E>[ index ];
 
 	return {};
@@ -381,13 +417,13 @@ public:
 
 	constexpr enum_bitset& operator|=( enum_bitset rhs ) noexcept
 	{
-		m_value &= rhs.m_value;
+		m_value |= rhs.m_value;
 		return *this;
 	}
 
 	constexpr enum_bitset& operator^=( enum_bitset rhs ) noexcept
 	{
-		m_value &= rhs.m_value;
+		m_value ^= rhs.m_value;
 		return *this;
 	}
 
@@ -449,7 +485,7 @@ public:
 	template <typename CharT, typename Traits>
 	friend std::basic_ostream<CharT, Traits>& operator<<( std::basic_ostream<CharT, Traits>& os, const enum_bitset& x )
 	{
-		for ( E b = 1 << ( sizeof( E ) - 1 ); b != 0; b >>= 1 )
+		for ( E b = 1 << ( bit_sizeof<E>() - 1 ); b != 0; b >>= 1 )
 		{
 			if ( x.m_value & b )
 				os << '1';
@@ -460,7 +496,7 @@ public:
 	}
 
 private:
-	E m_value = static_cast<E>( 0 );
+	E m_value = E{};
 };
 
 // enum_map
@@ -569,10 +605,9 @@ public:
 
 	constexpr enum_map( const std::initializer_list<value_type> init )
 	{
-		dbExpects( init.size() == enum_count_v<E> );
-
-#ifndef SHIPPING
+#ifdef _DEBUG
 		std::array<bool, enum_count_v<E>> checks{};
+		std::size_t initCount = 0;
 #endif
 
 		for ( const auto& entry : init )
@@ -581,11 +616,15 @@ public:
 			dbExpects( index < size() );
 			m_data[ index ] = entry.second;
 
-#ifndef SHIPPING
+#ifdef _DEBUG
 			dbExpects( !checks[ index ] );
 			checks[ index ] = true;
+			initCount++;
 #endif
 		}
+#ifdef _DEBUG
+		dbEnsures( initCount == enum_count_v<E> );
+#endif
 	}
 
 	constexpr enum_map& operator=( const enum_map& ) = default;

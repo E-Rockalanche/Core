@@ -6,6 +6,24 @@
 #include <algorithm>
 
 namespace stdx {
+
+template <typename Container>
+class container_traits
+{
+public:
+	using iterator = decltype( std::begin( std::declval<Container>() ) );
+	using const_iterator = decltype( std::begin( std::declval<const Container>() ) );
+
+	using reference = decltype( *std::declval<iterator>() );
+	using const_reference = decltype( *std::declval<const_iterator>() );
+
+	using value_type = std::remove_cv_t<reference>;
+
+	using size_type = decltype( std::size( std::declval<Container>() ) );
+
+	using pointer = decltype( std::data( std::declval<Container>() ) );
+	using const_pointer = decltype( std::data( std::declval<const Container>() ) );
+};
 	
 // quick erasure of elements that does not preserve order
 template <typename Container>
