@@ -1,16 +1,24 @@
 #pragma once
 
-#include <utility>
+#include <queue>
+
 
 namespace stdx
 {
 
-template <typename T, typename Priority, typename Compare = std::less<Priority>>
-class priority_queue
+template <typename Priority, typename T>
+struct priority_queue_entry
 {
-	using value_type = T;
-	using key_type = Priority;
-	using 
+	Priority priority;
+	T value;
+
+	bool operator<( const priority_queue_entry& other ) const noexcept
+	{
+		return priority > other.priority;
+	}
 };
+
+template <typename Priority, typename T>
+using priority_queue = std::priority_queue<priority_queue_entry<Priority, T>>;
 
 }

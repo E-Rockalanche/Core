@@ -31,7 +31,7 @@ namespace detail
 }
 
 template <typename T>
-constexpr T hash_fnv1a( stdx::span<const uint8_t> data ) noexcept
+constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
 {
 	T hash = detail::fnv_constants<T>::basis;
 

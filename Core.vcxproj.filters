@@ -139,6 +139,12 @@
     <ClInclude Include="inc\stdx\iterator.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
+    <ClInclude Include="inc\stdx\polymorphic_ptr.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\slot_map.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaType.cpp">
@@ -166,6 +172,9 @@
     </Filter>
     <Filter Include="inc\Math">
       <UniqueIdentifier>{6186f04f-5b31-41e9-b203-6515a698220a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\stdx">
+      <UniqueIdentifier>{a38696c0-71b3-481b-b901-9a6053586774}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

@@ -169,10 +169,12 @@
     <ClInclude Include="inc\stdx\mdspan.h" />
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
+    <ClInclude Include="inc\stdx\polymorphic_ptr.h" />
     <ClInclude Include="inc\stdx\priority_queue.h" />
     <ClInclude Include="inc\stdx\random.h" />
     <ClInclude Include="inc\stdx\reflection.h" />
     <ClInclude Include="inc\stdx\simple_map.h" />
+    <ClInclude Include="inc\stdx\slot_map.h" />
     <ClInclude Include="inc\stdx\span.h" />
     <ClInclude Include="inc\stdx\string.h" />
     <ClInclude Include="inc\stdx\thread_pool.h" />
