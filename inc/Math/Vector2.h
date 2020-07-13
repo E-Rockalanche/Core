@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdx/assert.h>
+#include <stdx/utility.h>
+
 #include <cmath>
 
 namespace Math
@@ -192,3 +194,28 @@ using Vector2i = Vector2<int>;
 using Position2i = Position2<int>;
 
 } // namespace Math
+
+namespace std
+{
+	template<typename T>
+	struct hash<Math::Vector2<T>>
+	{
+		std::size_t operator()( const Math::Vector2<T>& value ) const noexcept
+		{
+			auto h = std::hash<T>{}( value.x );
+			stdx::hash_combine( h, value.y );
+			return h;
+		}
+	};
+
+	template<typename T>
+	struct hash<Math::Position2<T>>
+	{
+		std::size_t operator()( const Math::Position2<T>& value ) const noexcept
+		{
+			auto h = std::hash<T>{}( value.x );
+			stdx::hash_combine( h, value.y );
+			return h;
+		}
+	};
+}

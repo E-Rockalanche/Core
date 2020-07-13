@@ -46,7 +46,7 @@ constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
 template <typename T>
 inline void hash_combine( std::size_t& seed, const T& value ) noexcept
 {
-	seed ^= std::hash{}( value ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+	seed ^= std::hash<T>{}( value ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
 }
 
 namespace detail

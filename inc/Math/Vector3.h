@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdx/assert.h>
+#include <stdx/utility.h>
 
 #include <cmath>
 
@@ -357,3 +358,44 @@ using Position3f = Position3<float>;
 using Normal3f = Normal3<float>;
 
 } // namespace Math
+
+namespace std
+{
+
+template<typename T>
+struct hash<Math::Vector3<T>>
+{
+	std::size_t operator()( const Math::Vector3<T>& value ) const noexcept
+	{
+		auto h = std::hash<T>{}( value.x );
+		stdx::hash_combine( h, value.y );
+		stdx::hash_combine( h, value.z );
+		return h;
+	}
+};
+
+template<typename T>
+struct hash<Math::Position3<T>>
+{
+	std::size_t operator()( const Math::Position3<T>& value ) const noexcept
+	{
+		auto h = std::hash<T>{}( value.x );
+		stdx::hash_combine( h, value.y );
+		stdx::hash_combine( h, value.z );
+		return h;
+	}
+};
+
+template<typename T>
+struct hash<Math::Normal3<T>>
+{
+	std::size_t operator()( const Math::Normal3<T>& value ) const noexcept
+	{
+		auto h = std::hash<T>{}( value.x() );
+		stdx::hash_combine( h, value.y() );
+		stdx::hash_combine( h, value.z() );
+		return h;
+	}
+};
+
+}
