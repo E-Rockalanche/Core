@@ -2,10 +2,20 @@
 #define STDX_CONTAINER_HPP
 
 #include <stdx/assert.h>
+#include <stdx/type_traits.h>
 
 #include <algorithm>
 
 namespace stdx {
+
+namespace detail
+{
+	template <typename C>
+	using container_pointer_t = decltype( std::data( std::declval<C>() ) );
+
+	template <typename C>
+	using container_const_pointer_t = decltype( std::data( std::declval<const C>() ) );
+}
 
 template <typename Container>
 class container_traits
@@ -17,12 +27,10 @@ public:
 	using reference = decltype( *std::declval<iterator>() );
 	using const_reference = decltype( *std::declval<const_iterator>() );
 
-	using value_type = std::remove_cv_t<reference>;
-
 	using size_type = decltype( std::size( std::declval<Container>() ) );
 
-	using pointer = decltype( std::data( std::declval<Container>() ) );
-	using const_pointer = decltype( std::data( std::declval<const Container>() ) );
+	using pointer = stdx::detected_t<detail::container_pointer_t, Container>;
+	using const_pointer = stdx::detected_t<detail::container_const_pointer_t, Container>;
 };
 	
 // quick erasure of elements that does not preserve order

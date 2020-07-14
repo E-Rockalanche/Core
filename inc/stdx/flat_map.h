@@ -11,21 +11,26 @@ namespace stdx
 template <class Key, class T, class Compare = std::less<Key>>
 class flat_map
 {
+	using value_type_imp = std::pair<Key, T>;
+
 public:
 	using key_type = Key;
 	using mapped_type = T;
-	using value_type = std::pair<Key, T>;
-	using size_type = typename std::vector<value_type>::size_type;
-	using difference_type = typename std::vector<value_type>::difference_type;
-	using key_compare = Compare;
-	using reference = value_type&;
+	using value_type = std::pair<const Key, T>;
+	using reference = value_type &;
 	using const_reference = const value_type&;
-	using pointer = value_type*;
+	using pointer = value_type *;
 	using const_pointer = const value_type*;
-	using iterator = typename std::vector<value_type>::iterator;
-	using const_iterator = typename std::vector<value_type>::const_iterator;
-	using reverse_iterator = typename std::vector<value_type>::reverse_iterator;
-	using const_reverse_iterator = typename std::vector<value_type>::const_reverse_iterator;
+
+	using size_type = typename std::vector<value_type_imp>::size_type;
+	using difference_type = typename std::vector<value_type_imp>::difference_type;
+
+	using iterator = typename std::vector<value_type_imp>::iterator;
+	using const_iterator = typename std::vector<value_type_imp>::const_iterator;
+	using reverse_iterator = typename std::vector<value_type_imp>::reverse_iterator;
+	using const_reverse_iterator = typename std::vector<value_type_imp>::const_reverse_iterator;
+
+	using key_compare = Compare;
 
 public:
 
@@ -38,7 +43,7 @@ public:
 	{
 		m_values.reserve( static_cast<size_t>( last - first ) );
 		for(auto it = first; it != last; ++it)
-			insert( *it );
+			dbVerify( insert( *it ).second );
 	}
 
 	flat_map( const flat_map& ) = default;
@@ -53,12 +58,12 @@ public:
 
 	flat_map& operator=( flat_map&& other ) noexcept = default;
 
-	flat_map& operator=( std::initializer_list<value_type> iList )
+	flat_map& operator=( std::initializer_list<value_type> init )
 	{
 		clear();
-		reserve( iList.size() );
-		for( auto& value : iList )
-			insert( value );
+		reserve( init.size() );
+		for( auto& value : init )
+			dbVerify( insert( value ).second );
 	}
 
 	// element access
@@ -79,8 +84,23 @@ public:
 		return *it;
 	}
 
-	T& operator[]( const Key& key ) { return try_emplace( key, T() ).first->second; }
-	T& operator[]( Key&& key ) { return try_emplace( std::move( key ), T() ).first->second; }
+	T& operator[]( const Key& key )
+	{
+		auto it = find( key );
+		if ( it != end() )
+			return it->second;
+
+		emplace_hint( it, key, T{} )->second;
+	}
+
+	T& operator[]( Key&& key )
+	{
+		auto it = find( key );
+		if ( it != end() )
+			return it->second;
+
+		emplace_hint( it, std::move( key ), T{} )->second;
+	}
 
 	// iterators
 
@@ -115,17 +135,17 @@ public:
 
 	void clear() { m_values.clear(); }
 
-	std::pair<iterator, bool> insert( const value_type& value )
+	std::pair<iterator, bool> insert( const value_type_imp& value )
 	{
 		return insert( begin(), end(), value );
 	}
 
-	std::pair<iterator, bool> insert( value_type&& value )
+	std::pair<iterator, bool> insert( value_type_imp&& value )
 	{
 		return insert( begin(), end(), std::move( value ) );
 	}
 
-	iterator insert( const_iterator hint, const value_type& value )
+	iterator insert( const_iterator hint, const value_type_imp& value )
 	{
 		const key_compare comparator;
 		if ( comparator( value.first, hint->first ) )
@@ -139,7 +159,7 @@ public:
 		return insert( hint+1, end(), value ).first;
 	}
 
-	iterator insert( const_iterator hint, value_type&& value )
+	iterator insert( const_iterator hint, value_type_imp&& value )
 	{
 		const key_compare comparator;
 		if ( comparator( value.first, hint->first ) )
@@ -175,7 +195,7 @@ public:
 			return { it, false };
 		}
 
-		it = m_values.insert( it, value_type( k, std::forward<M>( obj ) ) );
+		it = m_values.insert( it, value_type_imp( k, std::forward<M>( obj ) ) );
 		return { it, true };
 	}
 
@@ -189,7 +209,7 @@ public:
 			return { it, false };
 		}
 
-		it = m_values.insert( it, value_type( std::move( k ), std::forward<M>( obj )));
+		it = m_values.insert( it, value_type_imp( std::move( k ), std::forward<M>( obj )));
 		return { it, true };
 	}
 
@@ -220,15 +240,15 @@ public:
 	template <class... Args>
 	std::pair<iterator, bool> emplace( Args&&... args )
 	{
-		auto value = value_type( std::forward<Args>( args )... );
+		auto value = value_type_imp( std::forward<Args>( args )... );
 		return insert( value );
 	}
 
 	template <class... Args>
 	iterator emplace_hint( const_iterator hint, Args&&... args )
 	{
-		auto value = value_type( std::forward<Args>( args )... );
-		return insert( hint, value );
+		auto value = value_type_imp( std::forward<Args>( args )... );
+		return insert( hint, std::move( value ) );
 	}
 
 	template <class... Args>
@@ -238,7 +258,7 @@ public:
 		if ( isEntry( it, k ) )
 			return { it, false };
 
-		it = m_values.insert( it, value_type( k, std::forward<Args>( args )... ) );
+		it = m_values.insert( it, value_type_imp( k, std::forward<Args>( args )... ) );
 		return { it, true };
 	}
 
@@ -249,7 +269,7 @@ public:
 		if ( isEntry( it, k ) )
 			return { it, false };
 
-		it = m_values.insert( it, value_type( std::move( k ), std::forward<Args>( args )... ) );
+		it = m_values.insert( it, value_type_imp( std::move( k ), std::forward<Args>( args )... ) );
 		return { it, true };
 	}
 
@@ -262,10 +282,10 @@ public:
 			if ( hint == begin() || comparator( ( hint - 1 )->first, k ) )
 				return m_values.emplace( k, T( std::forward<Args>( args )... ) );
 			else
-				return insert( begin(), hint, value_type( k, T( std::forward<Args>( args )... ) ) ).first;
+				return insert( begin(), hint, value_type_imp( k, T( std::forward<Args>( args )... ) ) ).first;
 		}
 
-		return insert( hint + 1, end(), value_type( k, T( std::forward<Args>( args )... ) ) ).first;
+		return insert( hint + 1, end(), value_type_imp( k, T( std::forward<Args>( args )... ) ) ).first;
 	}
 	
 	template <class... Args>
@@ -277,10 +297,10 @@ public:
 			if ( hint == begin() || comparator( ( hint - 1 )->first, k ) )
 				return m_values.emplace( std::move( k ), T( std::forward<Args>( args )... ) );
 			else
-				return insert( begin(), hint, value_type( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
+				return insert( begin(), hint, value_type_imp( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
 		}
 
-		return insert( hint + 1, end(), value_type( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
+		return insert( hint + 1, end(), value_type_imp( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
 	}
 
 	iterator erase( const_iterator pos ) { return m_values.erase( pos ); }
@@ -468,7 +488,7 @@ private:
 private:
 	static constexpr const char* OUT_OF_RANGE_MESSAGE = "flat_map key out of range";
 
-	std::vector<value_type> m_values;
+	std::vector<value_type_imp> m_values;
 };
 
 }
