@@ -89,23 +89,23 @@ struct ListenerPriority
 };
 
 template <typename FuncSig>
-Subscription<FuncSig> operator%( EventListener& listener, std::function<FuncSig>&& function ) noexcept
+inline Subscription<FuncSig> operator%( EventListener& listener, std::function<FuncSig>&& function ) noexcept
 {
 	return Subscription{ &listener, std::move( function ), static_cast<int32_t>( EventPriority::Medium ) };
 }
 
 template <typename FuncSig>
-Subscription<FuncSig> operator%( ListenerPriority&& temp, std::function<FuncSig>&& function ) noexcept
+inline Subscription<FuncSig> operator%( ListenerPriority&& temp, std::function<FuncSig>&& function ) noexcept
 {
 	return Subscription{ &temp.listener, std::move( function ), temp.priority };
 }
 
-ListenerPriority operator%( EventListener& listener, EventPriority priority ) noexcept
+inline ListenerPriority operator%( EventListener& listener, EventPriority priority ) noexcept
 {
 	return ListenerPriority{ &listener, static_cast<int32_t>( priority ) };
 }
 
-ListenerPriority operator%( EventListener& listener, int32_t priority ) noexcept
+inline ListenerPriority operator%( EventListener& listener, int32_t priority ) noexcept
 {
 	return ListenerPriority{ &listener, priority };
 }

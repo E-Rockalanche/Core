@@ -59,7 +59,7 @@ namespace detail
 		(void)temp;
 	}
 
-}
+} // namespace detail
 
 template <typename Func, typename... Ts>
 void for_each( std::tuple<Ts...>& data, Func f )
@@ -67,7 +67,7 @@ void for_each( std::tuple<Ts...>& data, Func f )
 	detail::for_each_n( data, f, std::make_index_sequence<sizeof...( Ts )>{} );
 }
 
-}
+} // namespace stdx
 
 namespace std
 {
@@ -83,4 +83,4 @@ struct hash<std::pair<T1, T2>>
 	}
 };
 
-}
+} // namespace std

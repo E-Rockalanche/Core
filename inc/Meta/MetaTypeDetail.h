@@ -52,7 +52,7 @@ void MetaPrimitive<T>::write( MetaWriter& writer, const void* data ) const
 	}
 	else if constexpr ( std::is_integral_v<T> )
 	{
-		writer.writeInt( narrow_cast<int64_t>( value ) );
+		writer.writeInt( stdx::narrow_cast<int64_t>( value ) );
 	}
 	else if constexpr ( std::is_floating_point_v<T> )
 	{
@@ -91,7 +91,7 @@ void MetaPrimitive<T>::read( MetaReader& reader, void* data ) const
 
 		constexpr uint64_t MaxT = std::min<uint64_t>( std::numeric_limits<T>::max(), std::numeric_limits<int64_t>::max() );
 		constexpr int64_t MinT = std::max<int64_t>( std::numeric_limits<T>::min(), std::numeric_limits<int64_t>::min() );
-		if ( result > narrow_cast<int64_t>( MaxT ) || result < narrow_cast<int64_t>( MinT ) )
+		if ( result > stdx::narrow_cast<int64_t>( MaxT ) || result < stdx::narrow_cast<int64_t>( MinT ) )
 			throw MetaIOException( stdx::format( "Integer {} cannot fit in type {}", result, getName() ) );
 
 		value = static_cast<T>( result );

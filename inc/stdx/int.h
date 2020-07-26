@@ -7,6 +7,9 @@
 #include <limits>
 #include <type_traits>
 
+namespace stdx
+{
+
 template <typename To, typename From>
 constexpr To narrow_cast( const From from ) noexcept
 {
@@ -26,49 +29,6 @@ constexpr To narrow_cast( const From from ) noexcept
 		return result;
 	}
 }
-
-constexpr uint8_t operator ""_u8( unsigned long long n ) noexcept
-{
-	return narrow_cast<uint8_t>( n );
-}
-
-constexpr int8_t operator ""_s8( unsigned long long n ) noexcept
-{
-	return narrow_cast<int8_t>( n );
-}
-
-constexpr uint16_t operator ""_u16( unsigned long long n ) noexcept
-{
-	return narrow_cast<uint16_t>( n );
-}
-
-constexpr int16_t operator ""_s16( unsigned long long n ) noexcept
-{
-	return narrow_cast<int16_t>( n );
-}
-
-constexpr uint32_t operator ""_u32( unsigned long long n ) noexcept
-{
-	return narrow_cast<uint32_t>( n );
-}
-
-constexpr int32_t operator ""_s32( unsigned long long n ) noexcept
-{
-	return narrow_cast<int32_t>( n );
-}
-
-constexpr uint64_t operator ""_u64( unsigned long long n ) noexcept
-{
-	return narrow_cast<uint64_t>( n );
-}
-
-constexpr int64_t operator ""_s64( unsigned long long n ) noexcept
-{
-	return narrow_cast<int64_t>( n );
-}
-
-namespace stdx
-{
 
 // get int of exact size
 
@@ -183,4 +143,44 @@ using int_min_value_t = typename int_min_value<V>::type;
 template <std::uintmax_t V>
 using uint_value_t = typename uint_value<V>::type;
 
+} // namespace stdx
+
+constexpr uint8_t operator ""_u8( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<uint8_t>( n );
+}
+
+constexpr int8_t operator ""_s8( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<int8_t>( n );
+}
+
+constexpr uint16_t operator ""_u16( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<uint16_t>( n );
+}
+
+constexpr int16_t operator ""_s16( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<int16_t>( n );
+}
+
+constexpr uint32_t operator ""_u32( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<uint32_t>( n );
+}
+
+constexpr int32_t operator ""_s32( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<int32_t>( n );
+}
+
+constexpr uint64_t operator ""_u64( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<uint64_t>( n );
+}
+
+constexpr int64_t operator ""_s64( unsigned long long n ) noexcept
+{
+	return stdx::narrow_cast<int64_t>( n );
 }

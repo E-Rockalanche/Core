@@ -3,9 +3,9 @@
 #include "stdx/assert.h"
 #include "stdx/ctype.h"
 #include "stdx/string.h"
+#include "stdx/zstring_view.h"
 
 #include <array>
-#include <string_view>
 
 namespace stdx {
 namespace reflection {
@@ -22,7 +22,7 @@ namespace detail {
 		constexpr std::size_t size() const noexcept { return N; }
 		constexpr const char* data() const noexcept { return m_data.data(); }
 		constexpr const char* c_str() const noexcept { return m_data.data(); }
-		constexpr operator std::string_view() const noexcept { return { data(), size() }; }
+		constexpr operator stdx::zstring_view() const noexcept { return stdx::zstring_view{ data(), size() }; }
 		constexpr const char& operator[]( std::size_t index ) const noexcept { return m_data[ index ]; }
 
 	private:

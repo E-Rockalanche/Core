@@ -80,7 +80,7 @@ constexpr To UniqueIdCast( UniqueId<Tag, I, G> id ) noexcept
 {
 	return To
 	{
-		narrow_cast<To::base_type>( id.GetIndex() ),
-		narrow_cast<To::base_type>( id.GetGeneration() )
+		stdx::narrow_cast<typename To::base_type>( id.GetIndex() ),
+		stdx::narrow_cast<typename To::base_type>( id.GetGeneration() )
 	};
 }

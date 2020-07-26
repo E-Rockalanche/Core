@@ -8,16 +8,6 @@
 
 namespace stdx {
 
-template <typename RandomIt, typename URBG>
-auto random_element( RandomIt first, RandomIt last, URBG&& g ) -> typename std::iterator_traits<RandomIt>::reference
-{
-	const std::ptrdiff_t count = std::distance( first, last );
-	dbExpects( count > 0 );
-
-	std::uniform_int_distribution<std::ptrdiff_t> dist{ 0, count - 1 };
-	return first[ dist( g ) ];
-}
-
 template <typename T, std::size_t N,
 	std::enable_if_t<std::is_integral_v<T>, int> = 0>
 class strict_seed_seq

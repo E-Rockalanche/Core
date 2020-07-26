@@ -569,4 +569,13 @@ constexpr std::pair<ForwardIt, ForwardIt>
 		std::upper_bound( first, last, value, comp ) );
 }
 
+template <typename ForwardIt, typename URBG>
+typename ForwardIt
+	random_element( ForwardIt first, ForwardIt last, URBG&& g )
+{
+	dbExpects( first != last );
+	std::uniform_int_distribution<std::ptrdiff_t> dist{ 0, std::distance( first, last ) - 1 };
+	return first + dist( g );
+}
+
 } // namespace stdx

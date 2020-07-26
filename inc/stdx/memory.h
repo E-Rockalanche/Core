@@ -6,19 +6,6 @@
 namespace stdx
 {
 
-template <typename T>
-constexpr T* to_address( T* p ) noexcept
-{
-	static_assert( !std::is_function_v<T> );
-	return p;
-}
-
-template <typename T>
-constexpr auto to_address( const T& p ) noexcept
-{
-	return to_address( p.operator->() );
-}
-
 template <typename T,
 	std::enable_if_t<!std::is_array_v<T>, int> = 0>
 std::unique_ptr<T> make_unique_for_overwrite()

@@ -141,7 +141,7 @@ namespace detail
 	template <typename E, int... Is>
 	constexpr auto make_names( std::integer_sequence<int, Is...> ) noexcept
 	{
-		std::array<std::string_view, sizeof...( Is )> names
+		std::array<stdx::zstring_view, sizeof...( Is )> names
 		{
 			{ reflection::value_name_v<E, enum_values_v<E>[ Is ]>... }
 		};
@@ -151,7 +151,7 @@ namespace detail
 	template <typename E, int... Is>
 	constexpr auto make_pairs( std::integer_sequence<int, Is...> ) noexcept
 	{
-		std::array<std::pair<E, std::string_view>, sizeof...( Is )> pairs
+		std::array<std::pair<E, stdx::zstring_view>, sizeof...( Is )> pairs
 		{
 			{ { enum_values_v[ Is ], reflection::value_name_v<E, enum_values_v<E>[ Is ]> }... }
 		};
@@ -217,7 +217,8 @@ constexpr std::optional<E> enum_cast( std::string_view str ) noexcept
 		if ( pair.second == str )
 			return pair.first;
 	}
-	return std::nullopt;
+
+	return {};
 }
 
 template <typename E>
@@ -226,11 +227,11 @@ constexpr std::optional<E> enum_cast( std::underlying_type_t<E> value ) noexcept
 	if ( enum_contains<E>( value ) )
 		return static_cast<E>( value );
 
-	return std::nullopt;
+	return {};
 }
 
 template <typename E>
-constexpr std::string_view enum_name( E value ) noexcept
+constexpr stdx::zstring_view enum_name( E value ) noexcept
 {
 	const std::size_t index = enum_index( value );
 	if ( index != enum_index_npos )
@@ -238,6 +239,8 @@ constexpr std::string_view enum_name( E value ) noexcept
 
 	return {};
 }
+
+
 
 // bitfield ops
 
@@ -286,7 +289,7 @@ constexpr E& operator^=( E& lhs, E rhs ) noexcept
 	return lhs = lhs ^ rhs;
 }
 
-}
+} // namespace enum_bitfield_ops
 
 using namespace enum_bitfield_ops;
 
@@ -299,25 +302,22 @@ public:
 	class reference
 	{
 	public:
-		constexpr reference() noexcept = default;
-		constexpr reference( const reference& ) noexcept = default;
-		constexpr reference( enum_bitset& bitset, E flags ) noexcept : m_bitset{ &bitset }, m_flags{ flags } {}
-
 		constexpr reference& operator=( bool value ) noexcept
 		{
-			dbExpects( m_bitset );
-			m_bitset->set( m_flags, value );
+			m_bitset.set( m_flags, value );
 		}
 
 		constexpr operator bool() const noexcept
 		{
-			dbExpects( m_bitset );
-			return m_bitset->test_any( m_flags );
+			return m_bitset.test_any( m_flags );
 		}
 
 	private:
-		enum_bitset* m_bitset = nullptr;
-		E m_flags = E{};
+		constexpr reference( enum_bitset& bitset, E flags ) noexcept : m_bitset{ bitset }, m_flags{ flags } {}
+
+	private:
+		enum_bitset& m_bitset;
+		E m_flags;
 	};
 
 	constexpr enum_bitset() noexcept = default;
@@ -496,12 +496,15 @@ public:
 	}
 
 private:
-	E m_value = E{};
+	E m_value = static_cast<E>( 0 );
 };
+
+
 
 // enum_map
 
-namespace detail {
+namespace detail
+{
 
 	template <class Map, typename T>
 	class enum_map_cursor
@@ -575,7 +578,7 @@ namespace detail {
 		std::ptrdiff_t m_index = 0;
 	};
 
-}
+} // namespace detail
 
 template <typename E, typename T>
 class enum_map

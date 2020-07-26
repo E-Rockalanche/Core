@@ -14,30 +14,30 @@ class array2
 public:
 	using element_type = T;
 	using value_type = std::remove_cv_t<T>;
-	using pointer = T * ;
+	using pointer = T*;
 	using const_pointer = const T*;
-	using reference = T & ;
+	using reference = T&;
 	using const_reference = const T&;
 	using iterator = pointer;
 	using const_iterator = const_pointer;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
-	using index_type = size_type;
+	using index_type = std::ptrdiff_t;
+	using size_type = std::size_t;
 
 	// construction/assignment
 
 	array2() noexcept = default;
 
-	array2( size_type w, size_type h )
+	array2( index_type w, index_type h )
 	{
-		defaultAllocate( w, h );
+		defaultAllocate( stdx::narrow_cast<size_type>( w ), stdx::narrow_cast<size_type>( h ) );
 	}
 
-	array2( size_type w, size_type h, const T& value )
+	array2( index_type w, index_type h, const T& value )
 	{
-		overwriteAllocate( w, h );
+		overwriteAllocate( stdx::narrow_cast<size_type>( w ), stdx::narrow_cast<size_type>( h ) );
 		fill( value );
 	}
 
@@ -97,10 +97,10 @@ public:
 
 	// capacity
 
-	size_type width() const noexcept { return m_width; }
-	size_type height() const noexcept { return m_height; }
+	index_type width() const noexcept { return m_width; }
+	index_type height() const noexcept { return m_height; }
 
-	size_type size() const noexcept { return m_width * m_height; }
+	size_type size() const noexcept { return static_cast<size_type>( m_width * m_height ); }
 	difference_type ssize() const noexcept { return static_cast<difference_type>( m_width * m_height ); }
 
 	// modifiers
@@ -108,8 +108,8 @@ public:
 	template <typename U>
 	void set( index_type x, index_type y, U&& value )
 	{
-		dbExpects( 0 <= x && x < m_width );
-		dbExpects( 0 <= y && y < m_height );
+		dbExpects( 0 <= x && x < stdx::narrow_cast<index_type>( m_width ) );
+		dbExpects( 0 <= y && y < stdx::narrow_cast<index_type>( m_height ) );
 		m_data[ get_pos( x, y ) ] = std::forward<U>( value );
 	}
 
@@ -127,8 +127,10 @@ public:
 		other = std::move( temp );
 	}
 
-	void resize( size_type w, size_type h )
+	void resize( index_type w, index_type h )
 	{
+		dbExpects( w >= 0 && h >= 0 );
+
 		if ( m_width == w && m_height == h )
 			return;
 
@@ -137,14 +139,14 @@ public:
 			// no zero init
 			array2 newArray;
 			newArray.overwriteAllocate( w, h );
-			newArray.copy( *this, 0, 0, w, h, 0, 0 );
+			newArray.copy( 0, 0, *this, w, h, 0, 0 );
 			swap( newArray );
 		}
 		else
 		{
 			// must zero init
 			array2 newArray( w, h );
-			newArray.copy( *this, 0, 0, ( std::min )( m_width, w ), ( std::min )( m_height, h ), 0, 0 );
+			newArray.copy( 0, 0, *this, ( std::min )( m_width, w ), ( std::min )( m_height, h ), 0, 0 );
 			swap( newArray );
 		}
 	}
@@ -155,12 +157,14 @@ public:
 			element = value;
 	}
 
-	void fill( index_type left, index_type top, size_type w, size_type h, const T& value )
+	void fill( index_type left, index_type top, index_type w, index_type h, const T& value )
 	{
-		dbAssert( left >= 0 );
-		dbAssert( top >= 0 );
-		dbAssert( left + w <= m_width );
-		dbAssert( top + h <= m_height );
+		dbExpects( left >= 0 );
+		dbExpects( top >= 0 );
+		dbExpects( left + w <= m_width );
+		dbExpects( top + h <= m_height );
+		dbExpects( w >= 0 );
+		dbExpects( h >= 0 );
 
 		const auto rowStart = begin() + ( top * m_width ) + left;
 		const auto rowEnd = rowStart + ( h * m_width );
@@ -178,13 +182,15 @@ public:
 		const array2<U>& other,
 		index_type left,
 		index_type top,
-		size_type w,
-		size_type h )
+		index_type w,
+		index_type h )
 	{
-		dbAssert( 0 <= left && left + w <= other.m_width );
-		dbAssert( 0 <= top && top + h <= other.m_height );
-		dbAssert( 0 <= destX && destX + w <= m_width );
-		dbAssert( 0 <= destY && destY + h <= m_height );
+		dbExpects( 0 <= left && left + w <= other.m_width );
+		dbExpects( 0 <= top && top + h <= other.m_height );
+		dbExpects( 0 <= destX && destX + w <= m_width );
+		dbExpects( 0 <= destY && destY + h <= m_height );
+		dbExpects( 0 <= w );
+		dbExpects( 0 <= h );
 
 		auto destRow = begin() + ( destY * m_width ) + destX;
 		const auto destRowEnd = destRow + ( h * m_width );
@@ -199,35 +205,35 @@ public:
 
 	// lookup
 
-	size_type get_x( size_type pos ) const noexcept
+	index_type get_x( size_type pos ) const noexcept
 	{
 		dbExpects( pos < size() );
-		return pos % m_width;
+		return static_cast<index_type>( pos % m_width );
 	}
 
-	size_type get_y( size_type pos ) const noexcept
+	index_type get_y( size_type pos ) const noexcept
 	{
 		dbExpects( pos < size() );
-		return pos / m_width;
+		return static_cast<index_type>( pos / m_width );
 	}
 
-	size_type get_x( const_iterator it ) const noexcept
+	index_type get_x( const_iterator it ) const noexcept
 	{
-		return get_x( std::distance( begin(), it ) );
+		return get_x( static_cast<size_type>( it - cbegin() ) );
 	}
 
-	size_type get_y( const_iterator it ) const noexcept
+	index_type get_y( const_iterator it ) const noexcept
 	{
-		return get_y( std::distance( begin(), it ) );
+		return get_y( static_cast<size_type>( it - cbegin() ) );
 	}
 
 	size_type get_pos( index_type x, index_type y ) const noexcept
 	{
 		dbExpects( x >= 0 );
-		dbExpects( x < m_width );
+		dbExpects( x < stdx::narrow_cast<index_type>( m_width ) );
 		dbExpects( y >= 0 );
-		dbExpects( y < m_height );
-		return x + y * m_width;
+		dbExpects( y < stdx::narrow_cast<index_type>( m_height ) );
+		return static_cast<size_type>( x + y * m_width );
 	}
 
 	// comparison
@@ -250,22 +256,32 @@ public:
 private:
 	void defaultAllocate( size_type w, size_type h )
 	{
-		m_data = std::make_unique<T[]>( w * h );
+		const auto dataSize = w * h;
+		if ( dataSize == 0 )
+			m_data.reset();
+		else
+			m_data = std::make_unique<T[]>( dataSize );
+
 		m_width = w;
 		m_height = h;
 	}
 
 	void overwriteAllocate( size_type w, size_type h )
 	{
-		m_data = stdx::make_unique_for_overwrite<T[]>( w * h );
+		const auto dataSize = w * h;
+		if ( dataSize == 0 )
+			m_data.reset();
+		else
+			m_data = stdx::make_unique_for_overwrite<T[]>( dataSize );
+
 		m_width = w;
 		m_height = h;
 	}
 
 private:
 	std::unique_ptr<T[]> m_data;
-	size_type m_width = 0;
-	size_type m_height = 0;
+	index_type m_width = 0;
+	index_type m_height = 0;
 };
 
 } // namespace stdx

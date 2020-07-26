@@ -1,6 +1,7 @@
 
 #include <stdx/enum.h>
 #include <stdx/format.h>
+#include <stdx/iterator.h>
 
 #include <Meta/MetaType.h>
 #include <Meta/MetaClass.h>

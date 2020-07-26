@@ -2,6 +2,7 @@
 #define STDX_TYPE_TRAITS_HPP
 
 #include <type_traits>
+#include <utility>
 
 namespace stdx {
 
@@ -87,6 +88,29 @@ using is_detected_convertible = typename std::is_convertible<detected_t<Op, Args
 
 template <class To, template<class...> class Op, class... Args>
 constexpr bool is_detected_convertible_v = is_detected_convertible<To, Op, Args...>::value;
+
+
+
+// function traits
+
+template <typename>
+struct function_traits;
+
+template <typename Function>
+struct function_traits : public function_traits<decltype( &Function::operator() )> {};
+
+template <typename ClassType, typename ReturnType, typename... Arguments>
+struct function_traits<ReturnType( ClassType::* )( Arguments... ) const>
+{
+	using return_type = ReturnType;
+
+	using arguments_tuple = std::tuple<Arguments...>;
+
+	template <std::size_t I>
+	using argument_type = typename std::tuple_element<I, arguments_tuple>;
+
+	static constexpr std::size_t arity = sizeof...( Arguments );
+};
 
 } // namespace stdx
 
