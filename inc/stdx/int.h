@@ -143,6 +143,92 @@ using int_min_value_t = typename int_min_value<V>::type;
 template <std::uintmax_t V>
 using uint_value_t = typename uint_value<V>::type;
 
+// promoted types
+
+template <typename T>
+struct promoted {};
+
+template <>
+struct promoted<int8_t>
+{
+	using type = int16_t;
+};
+
+template <>
+struct promoted<int16_t>
+{
+	using type = int32_t;
+};
+
+template <>
+struct promoted<int32_t>
+{
+	using type = int64_t;
+};
+
+template <>
+struct promoted<uint8_t>
+{
+	using type = uint16_t;
+};
+
+template <>
+struct promoted<uint16_t>
+{
+	using type = uint32_t;
+};
+
+template <>
+struct promoted<uint32_t>
+{
+	using type = uint64_t;
+};
+
+template <typename T>
+using promoted_t = typename promoted<T>::type;
+
+template <typename T>
+struct promoted_fast {};
+
+template <>
+struct promoted_fast<int8_t>
+{
+	using type = int_fast16_t;
+};
+
+template <>
+struct promoted_fast<int16_t>
+{
+	using type = int_fast32_t;
+};
+
+template <>
+struct promoted_fast<int32_t>
+{
+	using type = int_fast64_t;
+};
+
+template <>
+struct promoted_fast<uint8_t>
+{
+	using type = uint_fast16_t;
+};
+
+template <>
+struct promoted_fast<uint16_t>
+{
+	using type = uint_fast32_t;
+};
+
+template <>
+struct promoted_fast<uint32_t>
+{
+	using type = uint_fast64_t;
+};
+
+template <typename T>
+using promoted_fast_t = typename promoted_fast<T>::type;
+
 } // namespace stdx
 
 constexpr uint8_t operator ""_u8( unsigned long long n ) noexcept

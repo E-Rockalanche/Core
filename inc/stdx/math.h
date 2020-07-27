@@ -1,7 +1,6 @@
 #ifndef STDX_MATH_HPP
 #define STDX_MATH_HPP
 
-#define _USE_MATH_DEFINES
 #include <cmath>
 
 namespace stdx
@@ -148,6 +147,26 @@ constexpr auto abs( const T& value ) -> std::make_unsigned_t<T>
 		return value;
 	else
 		return stdx::narrow_cast<std::make_unsigned_t<T>>( ( value < 0 ) ? -value : value );
+}
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+constexpr T safe_multiply( T x, T y ) noexcept
+{
+	const auto result = x * y;
+	dbEnsures( x == 0 || result / x == y );
+	return stdx::narrow_cast<T>( result );
+}
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+constexpr T safe_add( T x, T y ) noexcept
+{
+	const auto result = x + y;
+	dbEnsures( ( x > 0 && y > 0 )
+			   ? ( result > 0 )
+			   : ( ( x < 0 && y < 0 )
+				   ? ( result < 0 )
+				   : true ) );
+	return result;
 }
 
 } // namespace stdx

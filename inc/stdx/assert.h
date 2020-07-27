@@ -61,14 +61,18 @@
 // safe to use in constexpr function
 #define dbExpects( condition )	\
 	MultiLineMacroBegin	\
-	if ( !( condition ) )	\
+	if ( !( condition ) ) {	\
 		dbAssertFail( #condition );	\
+		dbBreak();	\
+	}	\
 	MultiLineMacroEnd
 
 #define dbEnsures( condition )	\
 	MultiLineMacroBegin	\
-	if ( !( condition ) )	\
+	if ( !( condition ) ) {	\
 		dbAssertFail( #condition );	\
+		dbBreak();	\
+	}	\
 	MultiLineMacroEnd
 
 #else

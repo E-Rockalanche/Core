@@ -55,6 +55,12 @@ public:
 private:
 	std::vector<BaseEventSink*> m_subscriptions;
 
+	void Add( BaseEventSink* eventSink ) noexcept
+	{
+		dbAssert( std::find( m_subscriptions.begin(), m_subscriptions.end(), eventSink ) == m_subscriptions.end() );
+		m_subscriptions.push_back( eventSink );
+	}
+
 	void Remove( BaseEventSink* eventSink ) noexcept
 	{
 		const auto it = std::find( m_subscriptions.begin(), m_subscriptions.end(), eventSink );
@@ -72,6 +78,10 @@ namespace detail
 template<typename FuncSig>
 struct Subscription
 {
+	Subscription( EventListener& l, std::function<FuncSig> f, int32_t p )
+		: listener{ &l }, function{ std::move( f ) }, priority{ p }
+	{}
+
 	EventListener* listener;
 	std::function<FuncSig> function;
 	int32_t priority;
@@ -84,33 +94,37 @@ struct Subscription
 
 struct ListenerPriority
 {
+	ListenerPriority( EventListener& l, int32_t p )
+		: listener{ &l }, priority{ p }
+	{}
+
 	EventListener* listener;
 	int32_t priority;
 };
 
-template <typename FuncSig>
-inline Subscription<FuncSig> operator%( EventListener& listener, std::function<FuncSig>&& function ) noexcept
-{
-	return Subscription{ &listener, std::move( function ), static_cast<int32_t>( EventPriority::Medium ) };
-}
-
-template <typename FuncSig>
-inline Subscription<FuncSig> operator%( ListenerPriority&& temp, std::function<FuncSig>&& function ) noexcept
-{
-	return Subscription{ &temp.listener, std::move( function ), temp.priority };
-}
-
-inline ListenerPriority operator%( EventListener& listener, EventPriority priority ) noexcept
-{
-	return ListenerPriority{ &listener, static_cast<int32_t>( priority ) };
-}
-
-inline ListenerPriority operator%( EventListener& listener, int32_t priority ) noexcept
-{
-	return ListenerPriority{ &listener, priority };
-}
-
 } // namespace detail
+
+template <typename Func>
+inline auto operator%( EventListener& listener, Func f ) noexcept
+{
+	return detail::Subscription{ listener, std::function( std::move( f ) ), static_cast<int32_t>( EventPriority::Medium ) };
+}
+
+template <typename Func>
+inline auto operator%( detail::ListenerPriority&& temp, Func f ) noexcept
+{
+	return detail::Subscription{ temp.listener, std::function( std::move( f ) ), temp.priority };
+}
+
+inline auto operator%( EventListener& listener, EventPriority priority ) noexcept
+{
+	return detail::ListenerPriority{ listener, static_cast<int32_t>( priority ) };
+}
+
+inline auto operator%( EventListener& listener, int32_t priority ) noexcept
+{
+	return detail::ListenerPriority{ listener, priority };
+}
 
 template <typename R, typename... Args>
 class EventSink : public BaseEventSink
@@ -144,6 +158,8 @@ public:
 				m_subscribers.end(),
 				[&]( auto& entry ) { return entry.listener == subscription.listener; } ),
 			"Listener is already subscribed to this event sink" );
+
+		subscription.listener->Add( this );
 
 		const auto pos = std::lower_bound( m_subscribers.begin(), m_subscribers.end(), subscription );
 		m_subscribers.insert( pos, std::move( subscription ) );

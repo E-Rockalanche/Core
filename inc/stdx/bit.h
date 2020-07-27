@@ -199,6 +199,41 @@ template <typename T,
 		return ( x << -r ) | ( x >> ( N + r ) );
 }
 
+namespace detail
+{
+
+template <typename T>
+[[nodiscard]] constexpr T compiler_ashr( T x, int s ) noexcept
+{
+	return x >> s;
+}
+
+template <typename T>
+[[nodiscard]] constexpr T portable_ashr( T x, int s ) noexcept
+{
+	using U = std::make_unsigned_t<T>;
+	return static_cast<T>( ( x < 0 )
+						   ? ~( ~static_cast<U>( x ) >> s )
+						   : ( static_cast<U>( x ) >> s ) );
+}
+
+template <typename T>
+struct compiler_supports_arithmetic_shift
+{
+	static constexpr bool value = ( detail::compiler_ashr( T( -1 ), 1 ) == T( -1 ) );
+};
+
+} // namespace detail
+
+template <typename T>
+[[nodiscard]] constexpr T ashr( T x, int s ) noexcept
+{
+	if constexpr ( detail::compiler_supports_arithmetic_shift<T>::value )
+		return detail::compiler_ashr( x, s );
+	else
+		return detail::portable_ashr( x, s );
+}
+
 constexpr uintmax_t unsigned_bits_max( size_t bits ) noexcept
 {
 	dbExpects( bits > 0 );
@@ -223,6 +258,6 @@ constexpr intmax_t signed_bits_min( size_t bits ) noexcept
 	return static_cast<int64_t>( result );
 }
 
-}
+} // namespace stdx
 
 #endif

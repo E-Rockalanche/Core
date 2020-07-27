@@ -138,6 +138,7 @@
     <ClInclude Include="inc\EventSink.h" />
     <ClInclude Include="inc\Json.h" />
     <ClInclude Include="inc\Math\Colour.h" />
+    <ClInclude Include="inc\Math\FixedPoint.h" />
     <ClInclude Include="inc\Math\Matrix3.h" />
     <ClInclude Include="inc\Math\BasicMatrix.h" />
     <ClInclude Include="inc\Math\Transform.h" />

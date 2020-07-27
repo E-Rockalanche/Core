@@ -145,6 +145,9 @@
     <ClInclude Include="inc\stdx\slot_map.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
+    <ClInclude Include="inc\Math\FixedPoint.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaType.cpp">
