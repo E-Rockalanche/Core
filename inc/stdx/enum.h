@@ -639,10 +639,10 @@ public:
 	}
 
 	// iterators
-	constexpr iterator begin() noexcept { return iterator( *this, 0 ); }
-	constexpr iterator end() noexcept { return iterator( *this, ssize() ); }
-	constexpr const_iterator begin() const noexcept { return const_iterator( *this, 0 ); }
-	constexpr const_iterator end() const noexcept { return const_iterator( *this, ssize() ); }
+	constexpr iterator begin() noexcept { return iterator( { *this, 0 } ); }
+	constexpr iterator end() noexcept { return iterator( { *this, ssize() } ); }
+	constexpr const_iterator begin() const noexcept { return const_iterator( { *this, 0 } ); }
+	constexpr const_iterator end() const noexcept { return const_iterator( { *this, ssize() } ); }
 	constexpr const_iterator cbegin() const noexcept { return begin(); }
 	constexpr const_iterator cend() const noexcept { return end(); }
 	constexpr reverse_iterator rbegin() noexcept { return reverse_iterator( end() ); }

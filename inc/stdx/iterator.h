@@ -114,58 +114,16 @@ namespace detail
 		std::tuple<Iterators...> m_iterators;
 	};
 
-	template <typename T>
-	class enumerator_cursor
-	{
-	public:
-		static_assert( std::is_integral_v<T> &&!std::is_same_v<T, bool>, "can only enumerate over non-boolean integral values" );
-
-		using difference_type = std::ptrdiff_t;
-
-		constexpr enumerator_cursor() noexcept = default;
-		constexpr enumerator_cursor( const enumerator_cursor& ) noexcept = default;
-		constexpr explicit enumerator_cursor( T index ) noexcept : m_index{ index } {}
-		constexpr enumerator_cursor& operator=( const enumerator_cursor& ) noexcept = default;
-
-		constexpr T read() const noexcept { return m_index; }
-
-		constexpr void next() noexcept
-		{
-			dbExpects( m_index != std::numeric_limits<T>::max() );
-			++m_index;
-		}
-
-		constexpr void prev() noexcept
-		{
-			dbExpects( m_index != 0 );
-			--m_index;
-		}
-
-		constexpr void advance( difference_type n ) noexcept
-		{
-			dbExpects( ( n >= 0 ) ? ( m_index + n >= m_index ) : ( m_index + n < m_index ) );
-			m_index += n;
-		}
-
-		constexpr difference_type distance_to( const enumerator_cursor& other ) const noexcept
-		{
-			dbExpects( other.m_index >= m_index );
-			return static_cast<difference_type>( other.m_index ) - static_cast<difference_type>( m_index );
-		}
-
-		constexpr bool equal( const enumerator_cursor& other ) const noexcept
-		{
-			return m_index == other.m_index;
-		}
-
-	private:
-		T m_index = 0;
-	};
-
 } // namespace detail
 
 template <typename... Its>
-using zip_iterator = stdx::basic_iterator<detail::zip_iterator_cursor<Its...>>;
+class zip_iterator : public stdx::basic_iterator<detail::zip_iterator_cursor<Its...>>
+{
+public:
+	using stdx::basic_iterator<detail::zip_iterator_cursor<Its...>>::basic_iterator;
+
+	constexpr zip_iterator( Its... iterators ) : zip_iterator( detail::zip_iterator_cursor{ iterators... } ) {}
+};
 
 template <typename... C>
 constexpr auto zip( C&&... c ) noexcept -> range<zip_iterator<typename stdx::container_traits<C>::iterator...>>
@@ -177,19 +135,77 @@ constexpr auto zip( C&&... c ) noexcept -> range<zip_iterator<typename stdx::con
 	};
 }
 
-template <typename T>
-using enumerator = stdx::basic_iterator<detail::enumerator_cursor<T>>;
-
-template <typename... C>
-constexpr auto enumerate( C&&... c ) noexcept -> range<zip_iterator<enumerator<std::size_t>, typename stdx::container_traits<C>::iterator...>>
+namespace detail
 {
-	const std::size_t maxCount = std::max( { std::distance( std::begin( c ) ,std::end( c ) )... } );
-	const auto enum_first = stdx::basic_iterator<detail::enumerator_cursor<std::size_t>()>{};
-	const auto enum_last = enum_first + maxCount;
+
+	template <typename T>
+	class integer_iterator_cursor
+	{
+	public:
+		static_assert( std::is_integral_v<T> && !std::is_same_v<T, bool>, "can only enumerate over non-boolean integral values" );
+
+		constexpr integer_iterator_cursor() noexcept = default;
+		constexpr integer_iterator_cursor( const integer_iterator_cursor& ) noexcept = default;
+		constexpr explicit integer_iterator_cursor( const T& index ) noexcept : m_index{ index } {}
+
+		constexpr integer_iterator_cursor& operator=( const integer_iterator_cursor& ) noexcept = default;
+
+		constexpr const T& read() const noexcept { return m_index; }
+
+		constexpr void next() noexcept
+		{
+			++m_index;
+		}
+
+		constexpr void prev() noexcept
+		{
+			--m_index;
+		}
+
+		constexpr void advance( std::ptrdiff_t n ) noexcept
+		{
+			m_index = stdx::narrow_cast<T>( m_index + n );
+		}
+
+		constexpr std::ptrdiff_t distance_to( const integer_iterator_cursor& other ) const noexcept
+		{
+			return static_cast<std::ptrdiff_t>( other.m_index ) - static_cast<std::ptrdiff_t>( m_index );
+		}
+
+		constexpr bool equal( const integer_iterator_cursor& other ) const noexcept
+		{
+			return m_index == other.m_index;
+		}
+
+	private:
+		T m_index = 0;
+	};
+
+} // namespace detail
+
+template <typename T>
+class integer_iterator : public stdx::basic_iterator<detail::integer_iterator_cursor<T>>
+{
+public:
+	using stdx::basic_iterator<detail::integer_iterator_cursor<T>>::basic_iterator;
+
+	constexpr integer_iterator( T value ) noexcept : integer_iterator( detail::integer_iterator_cursor{ value } ) {}
+};
+
+template <typename T>
+integer_iterator( const T& ) -> integer_iterator<T>;
+
+template <typename T = std::size_t, typename... C>
+constexpr auto enumerate( C&&... c ) -> range<zip_iterator<integer_iterator<T>, typename stdx::container_traits<C>::iterator...>>
+{
+	const auto maxCount = std::max( { std::size( c )... } );
+	const integer_iterator<T> enum_first;
+	const integer_iterator<T> enum_last{ stdx::narrow_cast<T>( maxCount ) };
+
 	return range
 	{
-		zip_iterator<enumerator<std::size_t>, typename stdx::container_traits<C>::iterator...>{ enum_first, std::begin( c )... },
-		zip_iterator<enumerator<std::size_t>, typename stdx::container_traits<C>::iterator...>{ enum_last, std::end( c )...}
+		zip_iterator<integer_iterator<T>, typename stdx::container_traits<C>::iterator...>{ enum_first, std::begin( c )... },
+		zip_iterator<integer_iterator<T>, typename stdx::container_traits<C>::iterator...>{ enum_last, std::end( c )... }
 	};
 }
 

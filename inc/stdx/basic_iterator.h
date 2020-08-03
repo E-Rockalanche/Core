@@ -34,7 +34,7 @@ namespace detail {
 	using cursor_prev_t = decltype( std::declval<C>().prev() );
 
 	template <typename C>
-	using cursor_advance_t = decltype( std::declval<C>().advance() );
+	using cursor_advance_t = decltype( std::declval<C>().advance( std::declval<std::ptrdiff_t>() ) );
 
 	template <typename C>
 	using cursor_distance_to_t = decltype( std::declval<C>().distance_to( std::declval<C>() ) );
@@ -52,90 +52,97 @@ public:
 	using difference_type = detected_or_t<std::ptrdiff_t, detail::cursor_distance_to_t, Cursor>;
 	using size_type = std::make_unsigned_t<difference_type>;
 
-	static_assert( stdx::is_detected_v<detail::cursor_equal_t, Cursor>, "basic_iterator cursor must provide method \"bool equal( const Cursor& )\"" );
+	static_assert( stdx::is_detected_v<detail::cursor_equal_t, Cursor>, "Cursor must implement \"bool equal( const Cursor& )\"" );
 
-	constexpr basic_iterator() noexcept = default;
+	constexpr basic_iterator() = default;
+
 	constexpr basic_iterator( const basic_iterator& ) = default;
 	constexpr basic_iterator( basic_iterator&& ) noexcept = default;
-	constexpr basic_iterator( const Cursor& c ) : m_cursor{ c } {}
-	constexpr basic_iterator( Cursor&& c ) noexcept : m_cursor{ std::move( c ) } {}
 
-	template <typename... Args>
-	constexpr explicit basic_iterator( Args&&... args ) : m_cursor{ std::forward<Args>( args )... } {}
+	explicit constexpr basic_iterator( const Cursor& c ) : m_cursor{ c } {}
+	explicit constexpr basic_iterator( Cursor&& c ) noexcept : m_cursor{ std::move( c ) } {}
 
-	constexpr basic_iterator& operator=( const basic_iterator& ) noexcept = default;
+	constexpr basic_iterator& operator=( const basic_iterator& ) = default;
+	constexpr basic_iterator& operator=( basic_iterator&& ) noexcept = default;
 
-	template <std::enable_if_t<is_detected_v<detail::cursor_read_t, Cursor>, int> = 0>
-	constexpr reference operator*() const noexcept { return m_cursor.read(); }
+	template <typename C = Cursor>
+	constexpr reference operator*() const
+	{
+		static_assert( is_detected_v<detail::cursor_read_t, C>, "Cursor must implement \"T& read() const\"" );
+		return m_cursor.read();
+	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_arrow_t, C>, int> = 0>
-	constexpr pointer operator->() const noexcept { return m_cursor.arrow(); }
+	template <typename C = Cursor>
+	constexpr pointer operator->() const
+	{
+		static_assert( is_detected_v<detail::cursor_arrow_t, C>, "Cursor must implement \"T* pointer() const\"" );
+		return m_cursor.arrow();
+	}
 
-	template <typename C = Cursor, std::enable_if_t<
-		is_detected_v<detail::cursor_advance_t, C> &&
-		is_detected_v<detail::cursor_read_t, C>, int> = 0>
+	template <typename C = Cursor>
 	constexpr reference operator[]( size_type index ) const
 	{
+		static_assert( is_detected_v<detail::cursor_advance_t, C>, "Cursor must implement \"void advance( std::ptrdiff_t )\"" );
+		static_assert( is_detected_v<detail::cursor_read_t, C>, "Cursor must implement \"T& read() const\"" );
+
 		auto copy = basic_iterator( *this );
-		copy.advance( static_cast<difference_type>( index ) );
+		copy.advance( stdx::narrow_cast<std::ptrdiff_t>( index ) );
 		return copy.read();
 	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_next_t, C>, int> = 0>
-	constexpr basic_iterator& operator++() noexcept
+	template <typename C = Cursor>
+	constexpr basic_iterator& operator++()
 	{
+		static_assert( is_detected_v<detail::cursor_next_t, C>, "Cursor must implement \"void next()\"" );
+
 		m_cursor.next();
 		return *this;
 	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_next_t, C>, int> = 0>
-	constexpr basic_iterator operator++( int ) noexcept
+	template <typename C = Cursor>
+	constexpr basic_iterator operator++( int )
 	{
+		static_assert( is_detected_v<detail::cursor_next_t, C>, "Cursor must implement \"void next()\"" );
+
 		basic_iterator copy{ *this };
 		m_cursor.next();
 		return copy;
 	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_prev_t, C>, int> = 0>
-	constexpr basic_iterator& operator--() noexcept
+	template <typename C = Cursor>
+	constexpr basic_iterator& operator--()
 	{
+		static_assert( is_detected_v<detail::cursor_prev_t, C>, "Cursor must implement \"void prev()\"" );
+
 		m_cursor.prev();
 		return *this;
 	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_prev_t, C>, int> = 0>
-	constexpr basic_iterator operator--( int ) noexcept
+	template <typename C = Cursor>
+	constexpr basic_iterator operator--( int )
 	{
+		static_assert( is_detected_v<detail::cursor_prev_t, C>, "Cursor must implement \"void prev()\"" );
+
 		basic_iterator copy{ *this };
 		m_cursor.prev();
 		return copy;
 	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-	constexpr basic_iterator& operator+=( difference_type n ) noexcept
+	template <typename T, typename C = Cursor>
+	constexpr basic_iterator& operator+=( T n )
 	{
-		m_cursor.advance( n );
+		static_assert( is_detected_v<detail::cursor_advance_t, C>, "Cursor must implement \"void advance( std::ptrdiff_t )\"" );
+
+		m_cursor.advance( stdx::narrow_cast<difference_type>( n ) );
 		return *this;
 	}
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-	constexpr basic_iterator& operator+=( size_type n ) noexcept
+	template <typename T, typename C = Cursor>
+	constexpr basic_iterator& operator-=( T n )
 	{
-		m_cursor.advance( static_cast<difference_type>( n ) );
-		return *this;
-	}
+		static_assert( is_detected_v<detail::cursor_advance_t, C>, "Cursor must implement \"void advance( std::ptrdiff_t )\"" );
 
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-	constexpr basic_iterator& operator-=( difference_type n ) noexcept
-	{
-		m_cursor.advance( -n );
-		return *this;
-	}
-
-	template <typename C = Cursor, std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-	constexpr basic_iterator& operator-=( size_type n ) noexcept
-	{
-		m_cursor.advance( -static_cast<difference_type>( n ) );
+		m_cursor.advance( -stdx::narrow_cast<difference_type>( n ) );
 		return *this;
 	}
 
@@ -145,51 +152,64 @@ private:
 	Cursor m_cursor;
 };
 
-template <typename C,
-	std::enable_if_t<is_detected_v<detail::cursor_distance_to_t, C>, int> = 0>
-constexpr typename basic_iterator<C>::difference_type operator-( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs ) noexcept
+template <typename C>
+constexpr typename basic_iterator<C>::difference_type operator-( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
 {
 	return lhs.cursor().distance_to( rhs.cursor() );
 }
 
-template <typename C,
-	std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-constexpr basic_iterator<C> operator+( basic_iterator<C> it, typename basic_iterator<C>::difference_type n ) noexcept
+template <typename T, typename C>
+constexpr basic_iterator<C> operator+( const basic_iterator<C>& it, T n )
 {
-	return it += n;
+	return basic_iterator<C>{ it } += n;
 }
 
-template <typename C,
-	std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-constexpr basic_iterator<C> operator+( basic_iterator<C> it, typename basic_iterator<C>::size_type n ) noexcept
+template <typename T, typename C>
+constexpr basic_iterator<C> operator+( T n, const basic_iterator<C>& it )
 {
-	return it += n;
+	return basic_iterator<C>{ it } += n;
 }
 
-template <typename C,
-	std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-constexpr basic_iterator<C> operator-( basic_iterator<C> it, typename basic_iterator<C>::difference_type n ) noexcept
+template <typename T, typename C>
+constexpr basic_iterator<C> operator-( const basic_iterator<C>& it, T n )
 {
-	return it -= n;
-}
-
-template <typename C,
-	std::enable_if_t<is_detected_v<detail::cursor_advance_t, C>, int> = 0>
-constexpr basic_iterator<C> operator-( basic_iterator<C> it, typename basic_iterator<C>::size_type n ) noexcept
-{
-	return it -= n;
+	return basic_iterator<C>{ it } -= n;
 }
 
 template <typename C>
-constexpr bool operator==( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs ) noexcept
+constexpr bool operator==( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
 {
 	return lhs.cursor().equal( rhs.cursor() );
 }
 
 template <typename C>
-constexpr bool operator!=( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs ) noexcept
+constexpr bool operator!=( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
 {
 	return !lhs.cursor().equal( rhs.cursor() );
+}
+
+template <typename C>
+constexpr bool operator<( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
+{
+	return rhs.distance_to( lhs ) < 0;
+}
+
+template <typename C>
+constexpr bool operator>( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
+{
+	return rhs.distance_to( lhs ) > 0;
+}
+
+template <typename C>
+constexpr bool operator<=( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
+{
+	return rhs.distance_to( lhs ) <= 0;
+}
+
+template <typename C>
+constexpr bool operator>=( const basic_iterator<C>& lhs, const basic_iterator<C>& rhs )
+{
+	return rhs.distance_to( lhs ) >= 0;
 }
 
 } // namespace stdx

@@ -76,6 +76,18 @@ public:
 };
 
 template <typename T>
+struct Vector2Less
+{
+	constexpr bool operator()( const Vector2<T>& lhs, const Vector2<T>& rhs ) const noexcept
+	{
+		if ( lhs.y != rhs.y )
+			return lhs.y < rhs.y;
+
+		return lhs.x < rhs.x;
+	}
+};
+
+template <typename T>
 constexpr bool operator==( const Vector2<T>& lhs, const Vector2<T>& rhs ) noexcept
 {
 	return lhs.x == rhs.x && lhs.y == rhs.y;
@@ -155,6 +167,18 @@ public:
 
 	T x = 0;
 	T y = 0;
+};
+
+template <typename T>
+struct Position2Less
+{
+	constexpr bool operator()( const Position2<T>& lhs, const Position2<T>& rhs ) const noexcept
+	{
+		if ( lhs.y != rhs.y )
+			return lhs.y < rhs.y;
+
+		return lhs.x < rhs.x;
+	}
 };
 
 template <typename T>

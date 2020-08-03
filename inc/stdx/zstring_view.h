@@ -47,7 +47,12 @@ public:
 	{}
 
 	template <std::size_t N>
-	constexpr basic_zstring_view( const CharT( &s )[ N ] ) : basic_zstring_view{ s, N - 1 } {}
+	constexpr basic_zstring_view( const CharT( &s )[ N ] )
+		: m_data{ s }
+		, m_size{ N - 1 }
+	{
+		dbEnsures( m_data[ m_size ] == 0 );
+	}
 
 	template <typename It, typename End>
 	explicit constexpr basic_zstring_view( It first, End last )
