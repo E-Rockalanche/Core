@@ -1,8 +1,7 @@
 #ifndef STDX_SPAN_HPP
 #define STDX_SPAN_HPP
 
-#include "assert.h"
-
+#include <stdx/assert.h>
 #include <stdx/iterator.h>
 
 #include <algorithm>
@@ -82,30 +81,30 @@ public: // construction and assignment
 	constexpr span() noexcept = default;
 
 	template <typename It>
-	constexpr span( It first, size_type count ) : m_data{ stdx::to_address( first ), count } {}
+	constexpr span( It first, size_type count ) : m_imp{ stdx::to_address( first ), count } {}
 	
 	template <typename It>
-	constexpr span( It first, It last ) : m_data{ stdx::to_address( first ), static_cast<size_type>( last - first ) } {}
+	constexpr span( It first, It last ) : m_imp{ stdx::to_address( first ), static_cast<size_type>( last - first ) } {}
 	
 	template <std::size_t N,
 		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
-	constexpr span( element_type( &arr )[ N ] ) noexcept : m_data{ arr, N } {}
+	constexpr span( element_type( &arr )[ N ] ) noexcept : m_imp{ arr, N } {}
 	
 	template <typename U, std::size_t N,
 		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
-	constexpr span( std::array<U, N>& arr ) noexcept : m_data{ arr.data(), arr.size() } {}
+	constexpr span( std::array<U, N>& arr ) noexcept : m_imp{ arr.data(), arr.size() } {}
 	
 	template <typename U, std::size_t N,
 		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
-	constexpr span( const std::array<U, N>& arr ) noexcept : m_data{ arr.data(), arr.size() } {}
+	constexpr span( const std::array<U, N>& arr ) noexcept : m_imp{ arr.data(), arr.size() } {}
 	
 	template <typename R,
 		std::enable_if_t<extent == dynamic_extent, int> = 0>
-	constexpr span( R&& r ) noexcept : m_data{ r.data(), r.size() } {}
+	constexpr span( R&& r ) noexcept : m_imp{ r.data(), r.size() } {}
 	
 	template <typename U, std::size_t N,
 		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
-	constexpr span( const span<U, N>& s ) noexcept : m_data{ s.data(), s.size() } {}
+	constexpr span( const span<U, N>& s ) noexcept : m_imp{ s.data(), s.size() } {}
 	
 	constexpr span( const span& other ) noexcept = default;
 
@@ -113,95 +112,95 @@ public: // construction and assignment
 
 public: // iterators
 
-	constexpr iterator begin() const noexcept { return m_data.data; }
-	constexpr iterator end() const noexcept { return m_data.data + m_data.size; }
+	constexpr iterator begin() const noexcept { return m_imp.data; }
+	constexpr iterator end() const noexcept { return m_imp.data + m_imp.size; }
 
-	constexpr const_iterator cbegin() noexcept { return m_data.data; }
-	constexpr const_iterator cend() const noexcept { return m_data.data + m_data.size; }
+	constexpr const_iterator cbegin() noexcept { return m_imp.data; }
+	constexpr const_iterator cend() const noexcept { return m_imp.data + m_imp.size; }
 
-	constexpr reverse_iterator rbegin() const noexcept { return m_data.data + m_data.size; }
-	constexpr reverse_iterator rend() const noexcept { return m_data; }
+	constexpr reverse_iterator rbegin() const noexcept { return m_imp.data + m_imp.size; }
+	constexpr reverse_iterator rend() const noexcept { return m_imp; }
 
-	constexpr const_reverse_iterator crend() const noexcept { return  m_data.data + m_data.size; }
-	constexpr const_reverse_iterator crbegin() noexcept { return m_data; }
+	constexpr const_reverse_iterator crend() const noexcept { return  m_imp.data + m_imp.size; }
+	constexpr const_reverse_iterator crbegin() noexcept { return m_imp; }
 
 public: // element access
 
 	constexpr reference front() const noexcept
 	{
 		dbExpects( !empty() );
-		return m_data[ 0 ];
+		return m_imp[ 0 ];
 	}
 
 	constexpr reference back() const noexcept
 	{
 		dbExpects( !empty() );
-		return m_data.data[ m_data.size - 1 ];
+		return m_imp.data[ m_imp.size - 1 ];
 	}
 
 	constexpr reference operator[]( size_type i ) const noexcept
 	{
-		dbExpects( i < m_data.size );
-		return m_data.data[ i ];
+		dbExpects( i < m_imp.size );
+		return m_imp.data[ i ];
 	}
 
-	constexpr pointer data() const noexcept { return m_data.data; }
+	constexpr pointer data() const noexcept { return m_imp.data; }
 
 public: // observers
 
-	constexpr size_type size() const noexcept { return m_data.size; }
-	constexpr difference_type ssize() const noexcept { return static_cast<difference_type>( m_data.m_data.size ); }
+	constexpr size_type size() const noexcept { return m_imp.size; }
+	constexpr difference_type ssize() const noexcept { return static_cast<difference_type>( m_imp.m_imp.size ); }
 
-	constexpr size_type size_bytes() const noexcept { return m_data.size * sizeof( element_type ); }
+	constexpr size_type size_bytes() const noexcept { return m_imp.size * sizeof( element_type ); }
 
-	[[nodiscard]] constexpr bool empty() const noexcept { return m_data.size == 0; }
+	[[nodiscard]] constexpr bool empty() const noexcept { return m_imp.size == 0; }
 
 public: // subviews
 
 	template <size_t Count>
 	constexpr span<element_type, Count> first() const noexcept
 	{
-		dbExpects( Count <= m_data.size );
-		return span{ m_data.data, m_data.data + Count };
+		dbExpects( Count <= m_imp.size );
+		return span{ m_imp.data, m_imp.data + Count };
 	}
 
 	constexpr span<element_type, dynamic_extent> first( size_t count ) const noexcept
 	{
-		dbExpects( count <= m_data.size );
-		return span{ m_data.data, m_data.data + count };
+		dbExpects( count <= m_imp.size );
+		return span{ m_imp.data, m_imp.data + count };
 	}
 
 	template <size_t Count>
 	constexpr span<element_type, Count> last() const noexcept
 	{
-		dbExpects( Count <= m_data.size );
-		return span{ ( m_data.data + m_data.size ) - Count, ( m_data.data + m_data.size ) };
+		dbExpects( Count <= m_imp.size );
+		return span{ ( m_imp.data + m_imp.size ) - Count, ( m_imp.data + m_imp.size ) };
 	}
 
 	constexpr span<element_type, dynamic_extent> last( size_t count ) const noexcept
 	{
-		dbExpects( count <= m_data.size );
-		return span{ ( m_data.data + m_data.size ) - count, ( m_data.data + m_data.size ) };
+		dbExpects( count <= m_imp.size );
+		return span{ ( m_imp.data + m_imp.size ) - count, ( m_imp.data + m_imp.size ) };
 	}
 
 	template <size_t Offset, size_t Count = dynamic_extent>
 	constexpr span<element_type, Count> subspan() const noexcept
 	{
-		dbExpects( Offset <= m_data.size );
-		dbExpects( Count == dynamic_extent || Offset + Count <= m_data.size );
-		return span{ m_data.data + Offset, m_data.data + std::min<size_t>( Offset + Count, m_data.size ) };
+		dbExpects( Offset <= m_imp.size );
+		dbExpects( Count == dynamic_extent || Offset + Count <= m_imp.size );
+		return span{ m_imp.data + Offset, m_imp.data + std::min<size_t>( Offset + Count, m_imp.size ) };
 	}
 
 	constexpr span<element_type, dynamic_extent> subspan( size_t offset, size_t count = dynamic_extent ) const noexcept
 	{
-		dbExpects( offset <= m_data.size );
-		dbExpects( count == dynamic_extent || offset + count <= m_data.size );
-		return span{ m_data.data + offset, m_data.data + std::min<size_t>( offset + count, m_data.size ) };
+		dbExpects( offset <= m_imp.size );
+		dbExpects( count == dynamic_extent || offset + count <= m_imp.size );
+		return span{ m_imp.data + offset, m_imp.data + std::min<size_t>( offset + count, m_imp.size ) };
 	}
 
 private:
 
-	data_type m_data;
+	data_type m_imp;
 };
 
 // deduction guides

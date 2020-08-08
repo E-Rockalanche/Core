@@ -23,6 +23,13 @@
 	dbLogToStdErr( "\n" );	\
 	MultiLineMacroEnd
 
+#define dbLogWarning( ... )	\
+	MultiLineMacroBegin	\
+	dbLogToStdErr( "WARNING AT %s:%d:\n", __FILE__, __LINE__ );	\
+	dbLogToStdErr(  __VA_ARGS__ );	\
+	dbLogToStdErr( "\n" );	\
+	MultiLineMacroEnd
+
 #define dbBreak() __debugbreak()
 
 #define dbBreakMessage( ... )	\
@@ -83,6 +90,7 @@
 #define dbLogToStdErr( ... ) EmptyBlock
 #define dbLogErrorLocation() EmptyBlock
 #define dbLogError( ... ) EmptyBlock
+#define dbLogWarning( ... ) EmptyBlock
 #define dbBreak() EmptyBlock
 #define dbBreakMessage( ... ) EmptyBlock
 #define dbAssert( condition ) EmptyBlock

@@ -151,6 +151,9 @@
     <ClInclude Include="inc\stdx\bounded.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
+    <ClInclude Include="inc\stdx\array.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaType.cpp">

@@ -2,6 +2,8 @@
 
 #include <stdx/memory.h>
 
+#include <stdx/int.h>
+
 #include <algorithm>
 #include <iterator>
 

@@ -28,6 +28,7 @@ class range
 public:
 	constexpr range() noexcept = default;
 	constexpr range( const range& ) noexcept = default;
+
 	constexpr explicit range( Iterator first, Iterator last ) noexcept : m_first{ std::move( first ) }, m_last{ std::move( last ) } {}
 
 	constexpr range& operator=( const range& ) noexcept = default;

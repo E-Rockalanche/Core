@@ -165,16 +165,23 @@ constexpr OutputIt copy_n( const InputIt first, const Size count, OutputIt dest 
 template <class InputIt, class OutputIt>
 constexpr OutputIt move( const InputIt first, const InputIt last, OutputIt dest )
 {
-	if ( dest < first )
+	if ( first <= dest && dest < last )
 	{
-		return stdx::copy( first, last, dest );
+		// move range in reverse
+		auto rfirst = std::reverse_iterator( last );
+		auto rlast = std::reverse_iterator( first );
+		auto rdest = std::reverse_iterator( dest );
+		for ( ; rfirst != rlast; ++rfirst, ++rdest )
+		{
+			*rdest = std::move( *rfirst );
+		}
 	}
 	else
 	{
-		return stdx::copy(
-			std::reverse_iterator( last ),
-			std::reverse_iterator( first ),
-			std::reverse_iterator( dest + std::distance( first, last ) ) );
+		for ( auto it = first; it != last; ++it, ++dest )
+		{
+			*dest = std::move( *it );
+		}
 	}
 }
 

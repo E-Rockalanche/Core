@@ -64,9 +64,9 @@ public:
 		: complimentary_multiply_with_carry_engine( default_seed )
 	{}
 
-	constexpr explicit complimentary_multiply_with_carry_engine( result_type value ) noexcept
+	constexpr explicit complimentary_multiply_with_carry_engine( result_type seed_ ) noexcept
 	{
-		seed( value );
+		seed( seed_ );
 	}
 
 	template <typename SeedSeq>
@@ -157,7 +157,7 @@ public:
 		return state;
 	}
 
-	void restore( save_state state ) noexcept
+	void restore( const save_state& state ) noexcept
 	{
 		std::copy( state.begin(), state.end() - 1, m_state.begin() );
 		m_index = state.back();

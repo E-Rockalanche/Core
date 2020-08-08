@@ -40,7 +40,7 @@ public:
 
 	constexpr void next() noexcept
 	{
-		dbExpects( m_it != m_last )
+		dbExpects( m_it != m_last );
 		do
 		{
 			++m_it;
@@ -50,11 +50,11 @@ public:
 
 	constexpr void prev() noexcept
 	{
-		dbExpects( m_it != m_first )
-			do
-			{
-				--m_it;
-			}
+		dbExpects( m_it != m_first );
+		do
+		{
+			--m_it;
+		}
 		while ( m_it != m_first && m_it->first == key_type{} );
 	}
 
