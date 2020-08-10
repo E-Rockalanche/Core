@@ -576,9 +576,9 @@ constexpr std::pair<ForwardIt, ForwardIt>
 		std::upper_bound( first, last, value, comp ) );
 }
 
-template <typename ForwardIt, typename URBG>
+template <typename ForwardIt, typename Generator>
 typename ForwardIt
-	random_element( ForwardIt first, ForwardIt last, URBG&& g )
+	random_element( ForwardIt first, ForwardIt last, Generator&& g )
 {
 	dbExpects( first != last );
 	std::uniform_int_distribution<std::ptrdiff_t> dist{ 0, std::distance( first, last ) - 1 };

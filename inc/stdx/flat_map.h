@@ -86,20 +86,20 @@ public:
 
 	T& operator[]( const Key& key )
 	{
-		auto it = find( key );
-		if ( it != end() )
+		const auto it = lower_bound( key );
+		if ( isEntry( it, key ) )
 			return it->second;
 
-		emplace_hint( it, key, T{} )->second;
+		return emplace_hint( it, key, T{} )->second;
 	}
 
 	T& operator[]( Key&& key )
 	{
-		auto it = find( key );
-		if ( it != end() )
+		const auto it = lower_bound( key );
+		if ( isEntry( it, key ) )
 			return it->second;
 
-		emplace_hint( it, std::move( key ), T{} )->second;
+		return emplace_hint( it, std::move( key ), T{} )->second;
 	}
 
 	// iterators
@@ -147,37 +147,53 @@ public:
 
 	iterator insert( const_iterator hint, const value_type_imp& value )
 	{
-		const key_compare comparator;
-		if ( comparator( value.first, hint->first ) )
+		dbExpects( cbegin() <= hint && hint <= cend() );
+
+		if ( empty() || ( hint == end() && key_compare {}( m_values.back().first, value.first ) ) )
 		{
-			if ( hint == begin() || comparator( ( hint - 1 )->first, value.first ) )
+			m_values.push_back( value );
+			return begin();
+		}
+		else if ( key_compare{}( value.first, hint->first ) )
+		{
+			if ( hint == begin() || key_compare{}( ( hint - 1 )->first, value.first ) )
 				return m_values.insert( hint, value );
 			else
 				return insert( begin(), hint, value ).first;
 		}
-
-		return insert( hint+1, end(), value ).first;
+		else
+		{
+			return insert( hint + 1, end(), value ).first;
+		}
 	}
 
 	iterator insert( const_iterator hint, value_type_imp&& value )
 	{
-		const key_compare comparator;
-		if ( comparator( value.first, hint->first ) )
+		dbExpects( cbegin() <= hint && hint <= cend() );
+
+		if ( empty() || ( hint == end() && key_compare {}( m_values.back().first, value.first ) ) )
 		{
-			if ( hint == begin() || comparator( ( hint - 1 )->first, value.first ) )
+			m_values.push_back( std::move( value ) );
+			return begin();
+		}
+		else if ( key_compare{}( value.first, hint->first ) )
+		{
+			if ( hint == begin() || key_compare{}( ( hint - 1 )->first, value.first ) )
 				return m_values.insert( hint, std::move( value ) );
 			else
 				return insert( begin(), hint, std::move( value ) ).first;
 		}
-
-		return insert( hint+1, end(), std::move( value ) ).first;
+		else
+		{
+			return insert( hint + 1, end(), std::move( value ) ).first;
+		}
 	}
 
 	template <class InputIt>
-	void insert( InputIt first, InputIt last )
+	void insert( InputIt first, const InputIt last )
 	{
-		for( auto it = first; it != last; ++it )
-			insert( *it );
+		for( ; first != last; ++first )
+			insert( *first );
 	}
 
 	void insert( std::initializer_list<value_type> iList )
@@ -241,7 +257,7 @@ public:
 	std::pair<iterator, bool> emplace( Args&&... args )
 	{
 		auto value = value_type_imp( std::forward<Args>( args )... );
-		return insert( value );
+		return insert( std::move( value ) );
 	}
 
 	template <class... Args>
@@ -276,10 +292,9 @@ public:
 	template <class... Args>
 	iterator try_emplace( const_iterator hint, const key_type& k, Args&&... args )
 	{
-		const key_compare comparator;
-		if ( hint == end() || comparator( k, hint->first ) )
+		if ( hint == end() || key_compare{}( k, hint->first ) )
 		{
-			if ( hint == begin() || comparator( ( hint - 1 )->first, k ) )
+			if ( hint == begin() || key_compare{}( ( hint - 1 )->first, k ) )
 				return m_values.emplace( k, T( std::forward<Args>( args )... ) );
 			else
 				return insert( begin(), hint, value_type_imp( k, T( std::forward<Args>( args )... ) ) ).first;
@@ -291,10 +306,9 @@ public:
 	template <class... Args>
 	iterator try_emplace( const_iterator hint, key_type&& k, Args&&... args )
 	{
-		const key_compare comparator;
-		if ( hint == end() || comparator( k, hint->first ) )
+		if ( hint == end() || key_compare{}( k, hint->first ) )
 		{
-			if ( hint == begin() || comparator( ( hint - 1 )->first, k ) )
+			if ( hint == begin() || key_compare{}( ( hint - 1 )->first, k ) )
 				return m_values.emplace( std::move( k ), T( std::forward<Args>( args )... ) );
 			else
 				return insert( begin(), hint, value_type_imp( std::move( k ), T( std::forward<Args>( args )... ) ) ).first;
@@ -319,9 +333,7 @@ public:
 
 	void swap( flat_map& other ) noexcept
 	{
-		auto temp = std::move( m_values );
-		m_values = std::move( other.m_values );
-		other.m_values = std::move( temp );
+		m_values.swap( other.m_values );
 	}
 
 	// lookup
@@ -359,69 +371,61 @@ public:
 
 	iterator lower_bound( const Key& key )
 	{
-		const key_compare comparator;
-		return std::lower_bound( begin(), end(), key, [&]( auto& entry, auto& key ){
-			return comparator( entry.first, key );
+		return std::lower_bound( begin(), end(), key, []( auto& entry, auto& key ){
+			return key_compare{}( entry.first, key );
 		} );
 	}
 
 	const_iterator lower_bound( const Key& key) const
 	{
-		const key_compare comparator;
-		return std::lower_bound( begin(), end(), key, [&]( auto& entry, auto& key ) {
-			return comparator( entry.first, key );
+		return std::lower_bound( begin(), end(), key, []( auto& entry, auto& key ) {
+			return key_compare{}( entry.first, key );
 		} );
 	}
 
 	template <class K>
 	iterator lower_bound( const K& x )
 	{
-		const key_compare comparator;
-		return std::lower_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
-			return comparator( entry.first, x );
+		return std::lower_bound( begin(), end(), x, []( auto& entry, auto& x ) {
+			return key_compare{}( entry.first, x );
 		} );
 	}
 
 	template <class K>
 	const_iterator lower_bound( const K& x ) const
 	{
-		const key_compare comparator;
-		return std::lower_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
-			return comparator( entry.first, x );
+		return std::lower_bound( begin(), end(), x, []( auto& entry, auto& x ) {
+			return key_compare{}( entry.first, x );
 		} );
 	}
 
 	iterator upper_bound( const Key& key )
 	{
-		const key_compare comparator;
-		return std::upper_bound( begin(), end(), key, [&]( auto& entry, auto& key ){
-			return comparator( entry.first, key );
+		return std::upper_bound( begin(), end(), key, []( auto& entry, auto& key ){
+			return key_compare{}( entry.first, key );
 		} );
 	}
 
 	const_iterator upper_bound( const Key& key) const
 	{
-		const key_compare comparator;
-		return std::upper_bound( begin(), end(), key, [&]( auto& entry, auto& key ) {
-			return comparator( entry.first, key );
+		return std::upper_bound( begin(), end(), key, []( auto& entry, auto& key ) {
+			return key_compare{}( entry.first, key );
 		} );
 	}
 
 	template <class K>
 	iterator upper_bound( const K& x )
 	{
-		const key_compare comparator;
-		return std::upper_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
-			return comparator( entry.first, x );
+		return std::upper_bound( begin(), end(), x, []( auto& entry, auto& x ) {
+			return key_compare{}( entry.first, x );
 		} );
 	}
 
 	template <class K>
 	const_iterator upper_bound( const K& x ) const
 	{
-		const key_compare comparator;
-		return std::upper_bound( begin(), end(), x, [&]( auto& entry, auto& x ) {
-			return comparator( entry.first, x );
+		return std::upper_bound( begin(), end(), x, []( auto& entry, auto& x ) {
+			return key_compare{}( entry.first, x );
 		} );
 	}
 
@@ -465,23 +469,25 @@ private:
 	template <typename Value>
 	std::pair<iterator, bool> insert( const_iterator first, const_iterator last, Value&& value )
 	{
-		const key_compare comparator;
-		auto const_it = std::lower_bound( first, last, value.first, [&]( auto& entry, auto& key ){
-			return comparator( entry.first, key );
+		dbExpects( cbegin() <= first && first <= cend() );
+		dbExpects( cbegin() <= last && last <= cend() );
+
+		const auto const_it = std::lower_bound( first, last, value.first, []( auto& entry, auto& key ){
+			return key_compare{}( entry.first, key );
 		} );
 
-		iterator it = begin() + std::distance( cbegin(), const_it );
+		const iterator it = begin() + std::distance( cbegin(), const_it );
 
 		if ( isEntry( it, value.first ) )
 			return { it, false };
 
-		m_values.insert( it, std::forward<Value>( value ) );
-		return { it, true };
+		return { insert( it, std::forward<Value>( value ) ), true };
 	}
 
 	template <typename I, typename K>
 	constexpr bool isEntry( const I& it, const K& key ) const
 	{
+		dbExpects( cbegin() <= it && it <= cend() );
 		return ( it != cend() ) && ( it->first == key );
 	}
 
@@ -491,7 +497,7 @@ private:
 	std::vector<value_type_imp> m_values;
 };
 
-}
+} // namespace stdx
 
 namespace std
 {

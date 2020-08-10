@@ -205,14 +205,20 @@ private:
 
 // deduction guides
 
-template <typename T, std::size_t N>
-span( T( &arr )[ N ] ) -> span<T, N>;
+template<class T, std::size_t N>
+span( T( &)[ N ] ) -> span<T, N>;
 
-template <typename U, std::size_t N>
-span( std::array<U, N>& arr ) -> span<U, N>;
+template<class T, std::size_t N>
+span( std::array<T, N>& ) -> span<T, N>;
 
-template <typename U, std::size_t N>
-span( const std::array<U, N>& arr ) -> span<const U, N>;
+template<class T, std::size_t N>
+span( const std::array<T, N>& ) -> span<const T, N>;
+
+template<class Container>
+span( Container& ) -> span<typename Container::value_type>;
+
+template<class Container>
+span( const Container& ) -> span<const typename Container::value_type>;
 
 } // namespace stdx
 

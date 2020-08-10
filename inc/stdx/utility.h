@@ -43,6 +43,20 @@ constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
 	return hash;
 }
 
+template<>
+constexpr uint16_t hash_fnv1a<uint16_t>( stdx::span<const char> data ) noexcept
+{
+	const uint32_t hash = hash_fnv1a<uint32_t>( data );
+	return static_cast<uint16_t>( ( hash >> 16 ) ^ ( hash & 0xffff ) );
+}
+
+template<>
+constexpr uint8_t hash_fnv1a<uint8_t>( stdx::span<const char> data ) noexcept
+{
+	const uint16_t hash = hash_fnv1a<uint16_t>( data );
+	return static_cast<uint8_t>( ( hash >> 8 ) ^ ( hash & 0xff ) );
+}
+
 template <typename T>
 inline void hash_combine( std::size_t& seed, const T& value ) noexcept
 {
@@ -53,7 +67,7 @@ namespace detail
 {
 
 	template <typename Tuple, typename Func, std::size_t... Is>
-	void for_each_n( Tuple& t, Func f, std::index_sequence<Is...> )
+	void for_each_in_tuple_imp( Tuple& t, Func f, std::index_sequence<Is...> )
 	{
 		auto temp = { ( f( std::get<Is>( t ) ), 0 )... };
 		(void)temp;
@@ -62,9 +76,9 @@ namespace detail
 } // namespace detail
 
 template <typename Func, typename... Ts>
-void for_each( std::tuple<Ts...>& data, Func f )
+void for_each_in_tuple( std::tuple<Ts...>& data, Func f )
 {
-	detail::for_each_n( data, f, std::make_index_sequence<sizeof...( Ts )>{} );
+	detail::for_each_in_tuple_imp( data, f, std::make_index_sequence<sizeof...( Ts )>{} );
 }
 
 } // namespace stdx

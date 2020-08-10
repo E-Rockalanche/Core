@@ -66,12 +66,12 @@ namespace detail
 
 		constexpr void next() noexcept
 		{
-			stdx::for_each( m_iterators, []( auto& it ) { ++it; } );
+			stdx::for_each_in_tuple( m_iterators, []( auto& it ) { ++it; } );
 		}
 
 		constexpr void prev() noexcept
 		{
-			stdx::for_each( m_iterators, []( auto& it ) { --it; } );
+			stdx::for_each_in_tuple( m_iterators, []( auto& it ) { --it; } );
 		}
 
 		constexpr reference read() const noexcept

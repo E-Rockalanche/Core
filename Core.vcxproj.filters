@@ -154,12 +154,18 @@
     <ClInclude Include="inc\stdx\array.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
+    <ClInclude Include="inc\Profiler.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaType.cpp">
       <Filter>src\Meta</Filter>
     </ClCompile>
     <ClCompile Include="src\Json.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Profiler.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

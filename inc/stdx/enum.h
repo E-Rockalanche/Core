@@ -244,7 +244,7 @@ constexpr stdx::zstring_view enum_name( E value ) noexcept
 
 // bitfield ops
 
-namespace enum_bitfield_ops
+namespace enum_bitset_ops
 {
 
 template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
@@ -289,9 +289,31 @@ constexpr E& operator^=( E& lhs, E rhs ) noexcept
 	return lhs = lhs ^ rhs;
 }
 
-} // namespace enum_bitfield_ops
+} // namespace enum_bitset_ops
 
-using namespace enum_bitfield_ops;
+using namespace enum_bitset_ops;
+
+// bitset testing
+
+template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
+constexpr bool test_any( E flags, E mask ) noexcept
+{
+	return static_cast<bool>( ( flags & mask ) != static_cast<E>( 0 ) );
+}
+
+template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
+constexpr bool test_all( E flags, E mask ) noexcept
+{
+	return static_cast<bool>( ( flags & mask ) == mask );
+}
+
+template <typename E, std::enable_if_t<is_bitset_enum_v<E>, int> = 0>
+constexpr bool test_none( E flags, E mask ) noexcept
+{
+	return static_cast<bool>( ( flags & mask ) == static_cast<E>( 0 ) );
+}
+
+
 
 template <typename E>
 class enum_bitset
@@ -733,6 +755,8 @@ constexpr bool operator>=( const enum_map<E, T>& lhs, const enum_map<E, T>& rhs 
 
 } // namespace stdx
 
+using namespace stdx::enum_bitset_ops;
+
 namespace std
 {
 	template<typename E>
@@ -744,5 +768,3 @@ namespace std
 		}
 	};
 }
-
-using namespace stdx::enum_bitfield_ops;

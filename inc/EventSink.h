@@ -8,7 +8,7 @@
 #include <limits>
 #include <vector>
 
-class EventListener;
+class EventSinkSubscription;
 
 enum class EventPriority : int32_t
 {
@@ -22,23 +22,23 @@ enum class EventPriority : int32_t
 class BaseEventSink
 {
 private:
-	virtual void Remove( EventListener* subscriber ) noexcept = 0;
+	virtual void Remove( EventSinkSubscription* subscriber ) noexcept = 0;
 
-	friend class EventListener;
+	friend class EventSinkSubscription;
 };
 
-class EventListener
+class EventSinkSubscription
 {
 public:
-	EventListener() noexcept = default;
+	EventSinkSubscription() noexcept = default;
 
-	EventListener( const EventListener& ) = delete;
-	EventListener( EventListener&& ) = delete;
+	EventSinkSubscription( const EventSinkSubscription& ) = delete;
+	EventSinkSubscription( EventSinkSubscription&& ) = delete;
 
-	EventListener& operator=( const EventListener& ) = delete;
-	EventListener& operator=( EventListener&& ) = delete;
+	EventSinkSubscription& operator=( const EventSinkSubscription& ) = delete;
+	EventSinkSubscription& operator=( EventSinkSubscription&& ) = delete;
 
-	~EventListener()
+	~EventSinkSubscription()
 	{
 		for ( auto* eventSink : m_subscriptions )
 		{
@@ -78,11 +78,11 @@ namespace detail
 template<typename FuncSig>
 struct Subscription
 {
-	Subscription( EventListener& l, std::function<FuncSig> f, int32_t p )
+	Subscription( EventSinkSubscription& l, std::function<FuncSig> f, int32_t p )
 		: listener{ &l }, function{ std::move( f ) }, priority{ p }
 	{}
 
-	EventListener* listener;
+	EventSinkSubscription* listener;
 	std::function<FuncSig> function;
 	int32_t priority;
 
@@ -94,18 +94,18 @@ struct Subscription
 
 struct ListenerPriority
 {
-	ListenerPriority( EventListener& l, int32_t p )
+	ListenerPriority( EventSinkSubscription& l, int32_t p )
 		: listener{ &l }, priority{ p }
 	{}
 
-	EventListener* listener;
+	EventSinkSubscription* listener;
 	int32_t priority;
 };
 
 } // namespace detail
 
 template <typename Func>
-inline auto operator%( EventListener& listener, Func f ) noexcept
+inline auto operator%( EventSinkSubscription& listener, Func f ) noexcept
 {
 	return detail::Subscription{ listener, std::function( std::move( f ) ), static_cast<int32_t>( EventPriority::Medium ) };
 }
@@ -116,12 +116,12 @@ inline auto operator%( detail::ListenerPriority&& temp, Func f ) noexcept
 	return detail::Subscription{ temp.listener, std::function( std::move( f ) ), temp.priority };
 }
 
-inline auto operator%( EventListener& listener, EventPriority priority ) noexcept
+inline auto operator%( EventSinkSubscription& listener, EventPriority priority ) noexcept
 {
 	return detail::ListenerPriority{ listener, static_cast<int32_t>( priority ) };
 }
 
-inline auto operator%( EventListener& listener, int32_t priority ) noexcept
+inline auto operator%( EventSinkSubscription& listener, int32_t priority ) noexcept
 {
 	return detail::ListenerPriority{ listener, priority };
 }
@@ -193,7 +193,7 @@ public:
 
 private:
 
-	void Remove( EventListener* listener ) noexcept override
+	void Remove( EventSinkSubscription* listener ) noexcept override
 	{
 		const auto it = std::find_if(
 			m_subscribers.begin(),
