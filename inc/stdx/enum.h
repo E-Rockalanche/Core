@@ -141,7 +141,7 @@ namespace detail
 	template <typename E, int... Is>
 	constexpr auto make_names( std::integer_sequence<int, Is...> ) noexcept
 	{
-		std::array<stdx::zstring_view, sizeof...( Is )> names
+		std::array<std::string_view, sizeof...( Is )> names
 		{
 			{ reflection::value_name_v<E, enum_values_v<E>[ Is ]>... }
 		};
@@ -151,7 +151,7 @@ namespace detail
 	template <typename E, int... Is>
 	constexpr auto make_pairs( std::integer_sequence<int, Is...> ) noexcept
 	{
-		std::array<std::pair<E, stdx::zstring_view>, sizeof...( Is )> pairs
+		std::array<std::pair<E, std::string_view>, sizeof...( Is )> pairs
 		{
 			{ { enum_values_v[ Is ], reflection::value_name_v<E, enum_values_v<E>[ Is ]> }... }
 		};
@@ -231,7 +231,7 @@ constexpr std::optional<E> enum_cast( std::underlying_type_t<E> value ) noexcept
 }
 
 template <typename E>
-constexpr stdx::zstring_view enum_name( E value ) noexcept
+constexpr std::string_view enum_name( E value ) noexcept
 {
 	const std::size_t index = enum_index( value );
 	if ( index != enum_index_npos )

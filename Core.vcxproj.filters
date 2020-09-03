@@ -19,9 +19,6 @@
     <ClInclude Include="inc\Meta\MetaType.h">
       <Filter>inc\Meta</Filter>
     </ClInclude>
-    <ClInclude Include="inc\Meta\MetaTypeDetail.h">
-      <Filter>inc\Meta</Filter>
-    </ClInclude>
     <ClInclude Include="inc\stdx\algorithm.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
@@ -133,13 +130,7 @@
     <ClInclude Include="inc\stdx\dynamic_array.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
-    <ClInclude Include="inc\stdx\mdspan.h">
-      <Filter>inc\stdx</Filter>
-    </ClInclude>
     <ClInclude Include="inc\stdx\iterator.h">
-      <Filter>inc\stdx</Filter>
-    </ClInclude>
-    <ClInclude Include="inc\stdx\polymorphic_ptr.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
     <ClInclude Include="inc\stdx\slot_map.h">
@@ -157,16 +148,37 @@
     <ClInclude Include="inc\Profiler.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\Meta\MetaEnum.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaPrimitive.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaList.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaString.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaMap.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaSet.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Meta\MetaPointer.h">
+      <Filter>inc\Meta</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Meta\MetaType.cpp">
-      <Filter>src\Meta</Filter>
-    </ClCompile>
     <ClCompile Include="src\Json.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\Profiler.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Meta\MetaClass.cpp">
+      <Filter>src\Meta</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

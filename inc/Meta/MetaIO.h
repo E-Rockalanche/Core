@@ -7,6 +7,9 @@
 #include <string>
 #include <string_view>
 
+namespace Meta
+{
+
 class MetaType;
 
 class MetaWriter
@@ -95,3 +98,5 @@ public:
 private:
 	std::string m_message;
 };
+
+} // namespace Meta

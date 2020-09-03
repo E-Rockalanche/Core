@@ -2,6 +2,11 @@
 
 #include "MetaType.h"
 
+#include <stdx/reflection.h>
+
+namespace Meta
+{
+
 class MetaVariable
 {
 public:
@@ -22,23 +27,28 @@ private:
 class MetaClass : public MetaType
 {
 public:
-	// for non-polymorphic or base classes and structs
-	MetaClass( std::string name, bool polymorphic, bool abstract, std::vector<MetaVariable> variables )
-		: MetaType( std::move( name ) )
-		, m_variables{ std::move( variables ) }
-		, m_polymorphic{ polymorphic }
-		, m_abstract{ abstract }
-	{}
-
-	// for derrived classes and structs
-	MetaClass( std::string name, bool polymorphic, bool abstract, const MetaClass* parent, std::vector<MetaVariable> variables )
-		: MetaType( std::move( name ) )
-		, m_variables{ std::move( variables ) }
-		, m_parent{ parent }
-		, m_polymorphic{ polymorphic }
-		, m_abstract{ abstract }
+	// base class
+	template<typename T>
+	static MetaClass MakeMetaClass( std::vector<MetaVariable> variables )
 	{
-		m_parent->addChildClass( this );
+		return MetaClass(
+			stdx::reflection::template type_name_v<T>,
+			std::is_polymorphic_v<T>,
+			std::is_abstract_v<T>,
+			nullptr,
+			std::move( variables ) );
+	}
+
+	// derived class
+	template<typename T>
+	static MetaClass MakeMetaClass( const MetaClass* parent, std::vector<MetaVariable> variables )
+	{
+		return MetaClass(
+			stdx::reflection::template type_name_v<T>,
+			std::is_polymorphic_v<T>,
+			std::is_abstract_v<T>,
+			parent,
+			std::move( variables ) );
 	}
 
 	void write( MetaWriter& writer, const void* data ) const override;
@@ -53,17 +63,19 @@ public:
 		return findVariable( name ) != nullptr;
 	}
 
-	bool isDerrived() const { return m_parent != nullptr; }
-	bool isBasePolymorphic() const { return m_parent == nullptr && m_polymorphic; }
-	bool isMonomorphic() const { return m_parent == nullptr && !m_polymorphic; }
+	bool isBase() const { return m_parent == nullptr; }
+	bool isPolymorphic() const { return m_polymorphic; }
 	bool isAbstract() const { return m_abstract; }
 
 private:
 
-	void addChildClass( const MetaClass* child ) const
-	{
-		m_children.push_back( child );
-	}
+	MetaClass( std::string name, bool polymorphic, bool abstract, const MetaClass* parent, std::vector<MetaVariable> variables )
+		: MetaType( std::move( name ) )
+		, m_variables{ std::move( variables ) }
+		, m_parent{ parent }
+		, m_polymorphic{ polymorphic }
+		, m_abstract{ abstract }
+	{}
 
 private:
 	std::vector<MetaVariable> m_variables;
@@ -71,6 +83,6 @@ private:
 	const MetaClass* m_parent = nullptr;
 	bool m_polymorphic;
 	bool m_abstract;
-
-	mutable std::vector<const MetaClass*> m_children; // children are registered after class is created
 };
+
+} // namespace Meta

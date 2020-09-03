@@ -2,6 +2,10 @@
 
 #if defined( _DEBUG )
 
+#ifndef DEBUG
+	#define DEBUG
+#endif
+
 #include <cstdio>
 
 #define MultiLineMacroBegin do{

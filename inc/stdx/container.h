@@ -15,6 +15,12 @@ namespace detail
 
 	template <typename C>
 	using container_const_pointer_t = decltype( std::data( std::declval<const C>() ) );
+
+	template <typename C>
+	using key_type_t = typename C::key_type;
+
+	template <typename C>
+	using mapped_type_t = typename C::mapped_type;
 }
 
 template <typename Container>
@@ -27,10 +33,15 @@ public:
 	using reference = decltype( *std::declval<iterator>() );
 	using const_reference = decltype( *std::declval<const_iterator>() );
 
+	using value_type = std::remove_reference_t<reference>;
+
 	using size_type = decltype( std::size( std::declval<Container>() ) );
 
 	using pointer = stdx::detected_t<detail::container_pointer_t, Container>;
 	using const_pointer = stdx::detected_t<detail::container_const_pointer_t, Container>;
+
+	using key_type = stdx::detected_t<detail::key_type_t, Container>;
+	using mapped_type = stdx::detected_t<detail::mapped_type_t, Container>;
 };
 	
 // quick erasure of elements that does not preserve order

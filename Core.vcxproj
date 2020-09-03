@@ -160,10 +160,16 @@
     <ClInclude Include="inc\Meta\Meta.h" />
     <ClInclude Include="inc\Meta\MetaClass.h" />
     <ClInclude Include="inc\Meta\MetaDeclare.h" />
+    <ClInclude Include="inc\Meta\MetaEnum.h" />
     <ClInclude Include="inc\Meta\MetaIO.h" />
     <ClInclude Include="inc\Meta\MetaJsonIO.h" />
+    <ClInclude Include="inc\Meta\MetaList.h" />
+    <ClInclude Include="inc\Meta\MetaMap.h" />
+    <ClInclude Include="inc\Meta\MetaPointer.h" />
+    <ClInclude Include="inc\Meta\MetaPrimitive.h" />
+    <ClInclude Include="inc\Meta\MetaSet.h" />
+    <ClInclude Include="inc\Meta\MetaString.h" />
     <ClInclude Include="inc\Meta\MetaType.h" />
-    <ClInclude Include="inc\Meta\MetaTypeDetail.h" />
     <ClInclude Include="inc\Profiler.h" />
     <ClInclude Include="inc\stdx\algorithm.h" />
     <ClInclude Include="inc\stdx\array.h" />
@@ -183,10 +189,8 @@
     <ClInclude Include="inc\stdx\int.h" />
     <ClInclude Include="inc\stdx\iterator.h" />
     <ClInclude Include="inc\stdx\math.h" />
-    <ClInclude Include="inc\stdx\mdspan.h" />
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
-    <ClInclude Include="inc\stdx\polymorphic_ptr.h" />
     <ClInclude Include="inc\stdx\priority_queue.h" />
     <ClInclude Include="inc\stdx\random.h" />
     <ClInclude Include="inc\stdx\reflection.h" />
@@ -203,7 +207,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Json.cpp" />
-    <ClCompile Include="src\Meta\MetaType.cpp" />
+    <ClCompile Include="src\Meta\MetaClass.cpp" />
     <ClCompile Include="src\Profiler.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

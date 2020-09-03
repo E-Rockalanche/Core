@@ -1,6 +1,7 @@
 #ifndef STDX_TYPE_TRAITS_HPP
 #define STDX_TYPE_TRAITS_HPP
 
+#include <iterator>
 #include <type_traits>
 #include <utility>
 
@@ -111,6 +112,78 @@ struct function_traits<ReturnType( ClassType::* )( Arguments... ) const>
 
 	static constexpr std::size_t arity = sizeof...( Arguments );
 };
+
+
+// container concepts
+
+namespace detail
+{
+	template <typename T>
+	using push_back_t = decltype( std::declval<T>().push_back( std::declval<typename T::value_type>() ) );
+
+	template <typename T>
+	using pop_back_t = decltype( std::declval<T>().pop_back() );
+
+	template <typename T>
+	using insert_t = decltype( std::declval<T>().insert( std::declval<typename T::value_type>() ) );
+
+	template <typename T>
+	using find_t = decltype( std::declval<T>().find( std::declval<typename T::key_type>() ) );
+
+	template <typename T>
+	using begin_t = decltype( std::begin( std::declval<T>() ) );
+
+	template <typename T>
+	using end_t = decltype( std::end( std::declval<T>() ) );
+
+	template <typename T>
+	using static_size_t = std::enable_if_t<std::size( std::declval<T>() ) >= 0, void>;
+
+	template <typename T>
+	using index_t = decltype( std::declval<T>()[ std::declval<std::size_t>() ] );
+
+	template <typename T>
+	using key_type_t = typename T::key_type;
+
+	template <typename T>
+	using mapped_type_t = typename T::mapped_type;
+
+	template <typename T>
+	using arrow_operator_t = decltype( std::declval<T>().operator->() );
+
+	template <typename T>
+	using deref_operator_t = decltype( std::declval<T>().operator*() );
+}
+
+template <typename T>
+constexpr bool is_iterable_v = is_detected_v<detail::begin_t, T> && is_detected_v<detail::end_t, T>;
+
+template <typename T>
+constexpr bool is_map_v =
+	is_detected_v<detail::insert_t, T> &&
+	is_detected_v<detail::find_t, T> &&
+	is_detected_v<detail::key_type_t, T> &&
+	is_detected_v<detail::mapped_type_t, T> &&
+	is_iterable_v<T>;
+
+template <typename T>
+constexpr bool is_set_v =
+	is_detected_v<detail::insert_t, T> &&
+	is_detected_v<detail::find_t, T> &&
+	is_detected_v<detail::key_type_t, T> &&
+	!is_detected_v<detail::mapped_type_t, T> &&
+	is_iterable_v<T>;
+
+template <typename T>
+constexpr bool is_list_v = is_detected_v<detail::push_back_t, T> && is_detected_v<detail::pop_back_t, T> && is_iterable_v<T>;
+
+template <typename T>
+constexpr bool is_array_like_v = is_detected_v<detail::index_t, T> && is_detected_v<detail::static_size_t, T> && is_iterable_v<T>;
+
+template <typename T>
+constexpr bool is_pointer_like_v =
+	std::is_pointer<T> ||
+	( is_detected_v<detail::arrow_operator_t, T> && is_detected_v<detail::deref_operator_t, T> );
 
 } // namespace stdx
 

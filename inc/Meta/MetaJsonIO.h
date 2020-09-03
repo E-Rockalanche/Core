@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <sstream>
 
+namespace Meta
+{
+
 class MetaJsonWriter : public MetaWriter
 {
 public:
@@ -327,3 +330,5 @@ private:
 	std::string m_data;
 	size_t m_pos = 0;
 };
+
+} // namespace Meta

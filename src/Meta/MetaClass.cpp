@@ -5,8 +5,10 @@
 
 #include <Meta/MetaType.h>
 #include <Meta/MetaClass.h>
-#include <Meta/MetaTypeDetail.h>
 #include <Meta/MetaIO.h>
+
+namespace Meta
+{
 
 const MetaVariable* MetaClass::findVariable( std::string_view name ) const
 {
@@ -66,3 +68,5 @@ void MetaClass::read( MetaReader& reader, void* data ) const
 		++count;
 	}
 }
+
+} // namepsace Meta

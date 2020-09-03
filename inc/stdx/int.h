@@ -28,9 +28,8 @@ namespace stdx
 template <typename To, typename From>
 constexpr To narrow_cast( const From from ) noexcept
 {
-	static_assert(
-		std::is_integral_v<To> && std::is_integral_v<From>,
-		"narrow_cast is for casting integral types only" );
+	static_assert( std::is_integral_v<To> && std::is_integral_v<From>, "narrow_cast is for casting integral types only" );
+	static_assert( !std::is_enum_v<To> && !std::is_enum_v<From>, "narrow_cast is not for casting enum types" );
 
 	if constexpr ( std::is_signed_v<To> == std::is_signed_v<From> && sizeof( To ) >= sizeof( From ) )
 	{
