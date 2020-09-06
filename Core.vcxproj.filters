@@ -169,6 +169,12 @@
     <ClInclude Include="inc\Meta\MetaPointer.h">
       <Filter>inc\Meta</Filter>
     </ClInclude>
+    <ClInclude Include="inc\stdx\static_map.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\sorted_map_range.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Json.cpp">

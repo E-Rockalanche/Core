@@ -33,6 +33,8 @@ namespace detail
 template <typename T>
 constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
 {
+	static_assert( std::is_unsigned_v<T> );
+
 	T hash = detail::fnv_constants<T>::basis;
 
 	for ( uint8_t byte : data )

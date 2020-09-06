@@ -3,6 +3,7 @@
 #include <stdx/assert.h>
 #include <stdx/bit.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
