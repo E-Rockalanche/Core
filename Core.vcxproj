@@ -202,7 +202,6 @@
     <ClInclude Include="inc\stdx\slot_map.h" />
     <ClInclude Include="inc\stdx\sorted_map_range.h" />
     <ClInclude Include="inc\stdx\span.h" />
-    <ClInclude Include="inc\stdx\static_map.h" />
     <ClInclude Include="inc\stdx\string.h" />
     <ClInclude Include="inc\stdx\thread_pool.h" />
     <ClInclude Include="inc\stdx\type_traits.h" />

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <stdx/ctype.h>
 #include <stdx/simple_map.h>
 #include <stdx/type_traits.h>
+#include <stdx/zstring_view.h>
 
+#include <charconv>
 #include <iterator>
 #include <string>
 #include <string_view>
@@ -15,11 +18,11 @@ namespace stdx
 
 namespace detail
 {
-template <typename C>
-using key_comp_t = decltype( std::declval<C>().key_comp() );
+	template <typename C>
+	using key_comp_t = decltype( std::declval<C>().key_comp() );
 
-template <typename C>
-using key_eq_t = decltype( std::declval<C>().key_eq() );
+	template <typename C>
+	using key_eq_t = decltype( std::declval<C>().key_eq() );
 }
 
 class json;
@@ -27,99 +30,105 @@ class json;
 namespace detail
 {
 
-template <typename Json>
-class json_iterator
-{
-	static_assert( std::is_same_v<json, std::remove_const_t<Json>> );
-public:
-	using size_type = std::size_t;
-	using difference_type = std::ptrdiff_t;
-	using index_type = difference_type;
-
-	// array
-	using value_type = typename Json::array_type::value_type;
-	using reference = value_type&;
-	using const_reference = const value_type&;
-	using pointer = value_type*;
-	using const_pointer = const value_type*;
-
-	// object
-	using key_type = typename Json::object_type::key_type;
-	using mapped_type = typename Json::object_type::mapped_type;
-
-	constexpr json_iterator() noexcept = default;
-	json_iterator( Json& json, index_type index )
-		: m_json{ json }
-		, m_index{ index }
-#ifdef DEBUG
-		, m_type{ json.get_type() }
-#endif
-	{}
-
-	json_iterator& operator=( const json_iterator& other )
+	template <typename Json>
+	class json_iterator
 	{
-		m_json = other.m_json;
-		m_index = other.m_index;
-#ifdef DEBUG
-		dbAssert( m_type == Json::type::null || m_type == other.m_type );
-		m_type = other.m_type;
-#endif
-	}
+		static_assert( std::is_same_v<json, std::remove_const_t<Json>> );
+	public:
+		using size_type = std::size_t;
+		using difference_type = std::ptrdiff_t;
+		using index_type = difference_type;
 
-	~json_iterator()
-	{
-#ifdef DEBUG
-		m_json = nullptr;
-		m_index = 0;
-		m_type = Json::type::null;
-#endif
-	}
+		// array
+		using value_type = typename Json::array_type::value_type;
+		using reference = value_type&;
+		using const_reference = const value_type&;
+		using pointer = value_type*;
+		using const_pointer = const value_type*;
 
-	operator typename Json::array_type::const_iterator() const { dbExpects( m_type == Json::type::array ); return m_json->arr().begin() + m_index; }
-	operator typename Json::object_type::const_iterator() const { dbExpects( m_type == Json::type::object ); return m_json->items().begin() + m_index; }
+		// object
+		using key_type = typename Json::object_type::key_type;
+		using mapped_type = typename Json::object_type::mapped_type;
 
-	json_iterator& operator++() { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); dbExpects( m_index < m_json->size() ); ++m_index; }
-	json_iterator operator++( int ) { json_iterator copy{ *this }; operator++(); return copy; }
+		constexpr json_iterator() noexcept = default;
+		json_iterator( Json& json, index_type index )
+			: m_json{ json }
+			, m_index{ index }
+	#ifdef DEBUG
+			, m_type{ json.get_type() }
+	#endif
+		{}
 
-	json_iterator& operator--() { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); dbExpects( m_index > 0 ); --m_index; }
-	json_iterator operator--( int ) { json_iterator copy{ *this }; operator--(); return copy; }
+		json_iterator& operator=( const json_iterator& other )
+		{
+			m_json = other.m_json;
+			m_index = other.m_index;
+	#ifdef DEBUG
+			dbAssert( m_type == Json::type::null || m_type == other.m_type );
+			m_type = other.m_type;
+	#endif
+		}
 
-	json_iterator& operator+=( difference_type n ) { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); m_index += n; dbEnsures( 0 <= m_index && m_index <= m_json->size() ); return *this; }
-	json_iterator& operator-=( difference_type n ) { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); m_index -= n; dbEnsures( 0 <= m_index && m_index <= m_json->size() ); return *this; }
+		~json_iterator()
+		{
+	#ifdef DEBUG
+			m_json = nullptr;
+			m_index = 0;
+			m_type = Json::type::null;
+	#endif
+		}
 
-	// array
-	value_type& operator*() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return m_json->arr()[ m_index ]; }
-	value_type* operator->() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return &m_json->arr()[ m_index ]; }
-	value_type& operator[]( index_type index ) const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return m_json->arr()[ m_index + index ]; }
+		operator typename Json::array_type::const_iterator() const { dbExpects( m_type == Json::type::array ); return m_json->arr().begin() + m_index; }
+		operator typename Json::object_type::const_iterator() const { dbExpects( m_type == Json::type::object ); return m_json->items().begin() + m_index; }
 
-	// object
-	const key_type& key() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return ( m_json->items().begin() + m_index )->first; }
-	const mapped_type& value() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return ( m_json->items().begin() + m_index )->second; }
+		json_iterator& operator++() { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); dbExpects( m_index < m_json->size() ); ++m_index; }
+		json_iterator operator++( int ) { json_iterator copy{ *this }; operator++(); return copy; }
 
-	friend json_iterator operator+( json_iterator it, difference_type n ) { return it += n; }
-	friend json_iterator operator+( difference_type n, json_iterator it ) { return it += n; }
-	friend json_iterator operator-( json_iterator it, difference_type n ) { return it -= n; }
-	friend json_iterator operator-( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index - rhs.m_index; }
+		json_iterator& operator--() { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); dbExpects( m_index > 0 ); --m_index; }
+		json_iterator operator--( int ) { json_iterator copy{ *this }; operator--(); return copy; }
 
-	friend bool operator==( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index == rhs.m_index; }
-	friend bool operator!=( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index != rhs.m_index; }
-	friend bool operator<( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index < rhs.m_index; }
-	friend bool operator>( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index > rhs.m_index; }
-	friend bool operator<=( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index <= rhs.m_index; }
-	friend bool operator>=( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index >= rhs.m_index; }
+		json_iterator& operator+=( difference_type n ) { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); m_index += n; dbEnsures( 0 <= m_index && m_index <= m_json->size() ); return *this; }
+		json_iterator& operator-=( difference_type n ) { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); m_index -= n; dbEnsures( 0 <= m_index && m_index <= m_json->size() ); return *this; }
 
-private:
-	Json* m_json = nullptr;
-	index_type m_index = 0;
+		// array
+		value_type& operator*() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return m_json->arr()[ m_index ]; }
+		value_type* operator->() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return &m_json->arr()[ m_index ]; }
+		value_type& operator[]( index_type index ) const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return m_json->arr()[ m_index + index ]; }
 
-	friend class stdx::json;
+		// object
+		const key_type& key() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return ( m_json->items().begin() + m_index )->first; }
+		const mapped_type& value() const { dbExpects( m_json ); dbExpects( m_type == m_json->get_type() ); return ( m_json->items().begin() + m_index )->second; }
 
-#ifdef DEBUG
-	Json::type m_type = Json::type::null;
-#endif
-};
+		friend json_iterator operator+( json_iterator it, difference_type n ) { return it += n; }
+		friend json_iterator operator+( difference_type n, json_iterator it ) { return it += n; }
+		friend json_iterator operator-( json_iterator it, difference_type n ) { return it -= n; }
+		friend json_iterator operator-( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index - rhs.m_index; }
+
+		friend bool operator==( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index == rhs.m_index; }
+		friend bool operator!=( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index != rhs.m_index; }
+		friend bool operator<( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index < rhs.m_index; }
+		friend bool operator>( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index > rhs.m_index; }
+		friend bool operator<=( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index <= rhs.m_index; }
+		friend bool operator>=( json_iterator lhs, json_iterator rhs ) { dbExpects( lhs.m_json == rhs.m_json ); dbExpects( lhs.m_type == lhs.m_json->get_type() ); dbExpects( rhs.m_type == rhs.m_json->get_type() ); return lhs.m_index >= rhs.m_index; }
+
+	private:
+		Json* m_json = nullptr;
+		index_type m_index = 0;
+
+		friend class stdx::json;
+
+	#ifdef DEBUG
+		Json::type m_type = Json::type::null;
+	#endif
+	};
 
 } // namespace detail
+
+class json_exception : public std::exception
+{
+public:
+	using std::exception::exception;
+};
 
 class json
 {
@@ -133,6 +142,7 @@ public:
 	using char_type = char;
 	using string_type = std::basic_string<char_type>;
 	using view_type = std::basic_string_view<char_type>;
+	using zview_type = stdx::basic_zstring_view<char_type>;
 
 	using array_type = std::vector<json>;
 
@@ -258,7 +268,13 @@ public:
 		return s;
 	}
 
-	static json parse( view_type s );
+	static json parse( zview_type v )
+	{
+		size_type i = 0;
+		while ( stdx::isspace( v[ i ] ) )
+			++i;
+		return parse_imp( v, i );
+	}
 
 	// iterators
 
@@ -294,7 +310,7 @@ public:
 			case type::array: return arr().empty();
 			case type::object: return items().empty();
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no empty()" );
 		}
 	}
 
@@ -306,7 +322,7 @@ public:
 			case type::array: return arr().size();
 			case type::object: return items().size();
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no size()" );
 		}
 	}
 
@@ -318,7 +334,7 @@ public:
 			case type::array: return arr().max_size();
 			case type::object: return items().max_size();
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no max_size()" );
 		}
 	}
 
@@ -332,7 +348,7 @@ public:
 			case type::array: return arr().reserve( capacity );
 			case type::object: return items().reserve( capacity );
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no reserve(size_type)" );
 		}
 	}
 
@@ -344,7 +360,7 @@ public:
 			case type::array: return arr().capacity();
 			case type::object: return items().capacity();
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no capacity()" );
 		}
 	}
 
@@ -356,7 +372,7 @@ public:
 			case type::array: return arr().shrink_to_fit();
 			case type::object: return items().shrink_to_fit();
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no shrink_to_fit()" );
 		}
 	}
 
@@ -370,7 +386,7 @@ public:
 			case type::array: arr().clear(); break;
 			case type::object: items().clear(); break;
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no clear()" );
 		}
 	}
 
@@ -381,7 +397,7 @@ public:
 			case type::string: str().resize( count ); break;
 			case type::array: arr().resize( count ); break;
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no resize(size_type)" );
 		}
 	}
 
@@ -393,7 +409,7 @@ public:
 			case type::string: str().resize( count, value ); break;
 			case type::array: arr().resize( count, value ); break;
 
-			default: throw std::bad_variant_access();
+			default: throw json_exception( "current type has no resize(size_type, const T&)" );
 		}
 	}
 
@@ -433,6 +449,7 @@ public:
 
 	const char* c_str() const { return str().c_str(); }
 	operator view_type() const { return str(); }
+	operator zview_type() const { auto& s = str(); return zview_type{ s.c_str(), s.size() }; }
 	size_type length() const { return str().length(); }
 
 	json& append( size_type count, char_type c ) { str().append( count, c ); return *this; }
@@ -689,12 +706,12 @@ private:
 
 	static void serialize_to( std::basic_string<char_type>& s, view_type v );
 
-	static constexpr view_type get_escapes() noexcept{ return "\b\f\n\r\t\"\\"; }
+	static json parse_imp( zview_type v, size_type& pos );
 
-	static constexpr bool is_escape( char_type c ) noexcept
-	{
-		return get_escapes().find_first_of( c ) != npos;
-	}
+	static string_type parse_string( zview_type v, size_type& pos );
+	static number_type parse_number( zview_type v, size_type& pos );
+	static array_type parse_array( zview_type v, size_type& pos );
+	static object_type parse_object( zview_type v, size_type& pos );
 
 private:
 
@@ -798,7 +815,7 @@ inline bool operator==( const json& lhs, const json& rhs )
 {
 	const auto type = lhs.get_type();
 	if ( type != rhs.get_type() )
-		throw std::bad_variant_access();
+		throw json_exception( "json type compare mismatch" );
 
 	switch ( type )
 	{
@@ -817,7 +834,7 @@ inline bool operator<( const json& lhs, const json& rhs )
 {
 	const auto type = lhs.get_type();
 	if ( type != rhs.get_type() )
-		throw std::bad_variant_access();
+		throw json_exception( "json type compare mismatch" );
 
 	switch ( type )
 	{
@@ -884,6 +901,7 @@ inline std::string json::dump_imp( std::string& s, size_type tab_width, size_typ
 			depth -= tab_width;
 			s.append( depth, ' ' );
 			s += '}';
+			break;
 		}
 	}
 }
@@ -905,6 +923,191 @@ inline void json::serialize_to( std::basic_string<char_type>& s, view_type v )
 			default: s += c; break;
 		}
 	}
+}
+
+inline json json::parse_imp( zview_type v, size_type& pos )
+{
+	if ( pos >= v.size() )
+		throw json_exception( "unexpected eof" );
+
+	dbExpects( !stdx::isspace( v[ pos ] ) );
+
+	json result;
+	size_type i = pos;
+
+	const auto c = v[ i ];
+	switch ( c )
+	{
+		case 'n': // null
+		{
+			if ( v.substr( i, 4 ) != "null" )
+				throw json_exception( "expected \"null\"" );
+
+			i += 4;
+			break;
+		}
+
+		case 't': // true
+		{
+			if ( v.substr( i, 4 ) != "true" )
+				throw json_exception( "expected \"true\"" );
+
+			i += 4;
+			result = true;
+			break;
+		}
+
+		case 'f': // false
+		{
+			if ( v.substr( i, 5 ) != "false" )
+				throw json_exception( "expected \"false\"" );
+
+			i += 5;
+			result = false;
+			break;
+		}
+
+		case '[': // array
+		{
+			result = parse_array( v, i );
+			break;
+		}
+
+		case '{': // object
+		{
+			result = parse_object( v, i );
+			break;
+		}
+
+		case '"': // string
+		{
+			result = parse_string( v, i );
+			break;
+		}
+
+		default: // number
+		{
+			result = parse_number( v, i );
+			break;
+		}
+	}
+
+	while ( stdx::isspace( v[ i ] ) )
+		++i;
+
+	pos = i;
+	return result;
+}
+
+inline json::array_type json::parse_array( zview_type v, size_type& pos )
+{
+	dbExpects( v[ pos ] == '[' );
+	size_type i = pos;
+	array_type array;
+	while ( stdx::isspace( v[ ++i ] ) ) {}
+	while ( v[ i ] != ']' )
+	{
+		array.push_back( parse_imp( v, i ) );
+
+		if ( v[ i ] == ',' )
+			while ( stdx::isspace( v[ ++i ] ) ) {}
+		else if ( v[ i ] == ']' )
+			break;
+		else
+			throw json_exception( "expected \"]\"" );
+	}
+	pos = i + 1;
+	dbEnsures( v[ pos - 1 ] == ']' );
+	return array;
+}
+
+inline json::object_type json::parse_object( zview_type v, size_type& pos )
+{
+	dbExpects( v[ pos ] == '{' );
+	size_type i = pos;
+	object_type result;
+	while ( stdx::isspace( v[ ++i ] ) ) {}
+	while ( v[ i ] != '}' )
+	{
+		string_type key = parse_string( v, i );
+		while ( stdx::isspace( v[ i ] ) ) ++i;
+		if ( v[ i ] != ':' )
+			throw json_exception( "expected \":\"" );
+
+		while ( stdx::isspace( v[ i ] ) ) ++i;
+		json value = parse_imp( v, i );
+
+		const auto insert_result = result.insert( { std::move( key ), std::move( value ) } );
+		if ( !insert_result.second )
+			throw json_exception( "duplicate object key" );
+
+		if ( v[ i ] == ',' )
+			while ( stdx::isspace( v[ ++i ] ) ) {}
+		else if ( v[ i ] == '}' )
+			break;
+		else
+			throw json_exception( "expected \"}\"" );
+	}
+	pos = i + 1;
+	dbEnsures( v[ pos - 1 ] == '}' );
+	return result;
+}
+
+inline json::string_type json::parse_string( zview_type v, size_type& pos )
+{
+	dbExpects( pos < v.size() );
+	dbExpects( v[ pos ] == '"' );
+
+	size_type i = pos + 1;
+	string_type result;
+
+	bool escaped = false;
+	while ( ( v[ i ] != '"' || escaped ) && v[ i ] != 0 )
+	{
+		if ( escaped )
+		{
+			switch ( v[ i ] )
+			{
+				case 'b': result += '\b'; break;
+				case 'f': result += '\f'; break;
+				case 'n': result += '\n'; break;
+				case 'r': result += '\r'; break;
+				case 't': result += '\t'; break;
+				case '"': result += '"'; break;
+				case '\\': result += '\\'; break;
+				default: result += v[ i ]; break;
+			}
+			escaped = false;
+		}
+		else if ( v[ i ] == '\\' )
+			escaped = true;
+		else
+			result += v[ i ];
+
+		++i;
+	}
+
+	if ( v[ i ] == 0 )
+		throw json_exception( "unterminated string" );
+
+	pos = i + 1;
+	dbEnsures( v[ pos - 1 ] == '"' );
+	return result;
+}
+
+inline json::number_type json::parse_number( zview_type v, size_type& pos )
+{
+	dbExpects( pos < v.size() );
+	dbExpects( stdx::isdigit( v[ pos ] ) );
+
+	number_type result = 0;
+	auto[ last, ec ] = std::from_chars( v.data() + pos, v.data() + v.size(), result );
+	if ( ec != std::errc{} )
+		throw json_exception( "failed to parse number" );
+
+	dbAssert( last > ( v.data() + pos ) );
+	pos = static_cast<size_type>( last - v.data() );
+	return result;
 }
 
 } // namespace stdx

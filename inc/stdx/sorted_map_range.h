@@ -25,7 +25,7 @@ public:
 
 	constexpr sorted_map_range( iterator first, iterator last ) : m_first{ first }, m_last{ last }
 	{
-		dbVerify( stdx::is_sorted( first, last, []( auto& lhs, auto& rhs ) { return Compare{}( lhs.first, rhs.first ); } ) );
+		dbVerify( stdx::is_sorted( first, last, [ cmp = key_compare{} ]( auto& lhs, auto& rhs ) { return cmp( lhs.first, rhs.first ); } ) );
 	}
 
 	// element access
@@ -77,20 +77,14 @@ public:
 	constexpr iterator find( const key_type& key ) const
 	{
 		auto it = lower_bound( key );
-		if ( it == m_last || it->first != key )
-			return m_last;
-		else
-			return it;
+		return ( it != m_last && it->first == key ) ? it : m_last;
 	}
 
 	template <typename K>
 	constexpr iterator find( const K& key ) const
 	{
 		auto it = lower_bound( key );
-		if ( it == m_last || it->first != key )
-			return m_last;
-		else
-			return it;
+		return ( it != m_last && it->first == key ) ? it : m_last;
 	}
 
 	constexpr bool contains( const key_type& key ) const
@@ -106,35 +100,35 @@ public:
 
 	constexpr std::pair<iterator, iterator> equal_range( const key_type& key ) const
 	{
-		return std::equal_range( m_first, m_last, key, []( auto& entry, const key_type& key ) { return Compare{}( entry.first, key ); } );
+		return std::equal_range( m_first, m_last, key, [ cmp = key_compare{} ]( auto& entry, const key_type& key ) { return cmp( entry.first, key ); } );
 	}
 
 	template <typename K>
 	constexpr std::pair<iterator, iterator> equal_range( const K& key ) const
 	{
-		return std::equal_range( m_first, m_last, key, []( auto& entry, const K& key ) { return Compare{}( entry.first, key ); } );
+		return std::equal_range( m_first, m_last, key, [ cmp = key_compare{} ]( auto& entry, const K& key ) { return cmp( entry.first, key ); } );
 	}
 
 	constexpr iterator lower_bound( const key_type& key ) const
 	{
-		return std::lower_bound( m_first, m_last, key, []( auto& entry, const key_type& key ) { return Compare{}( entry.first, key ); } );
+		return std::lower_bound( m_first, m_last, key, [ cmp = key_compare{} ]( auto& entry, const key_type& key ) { return cmp( entry.first, key ); } );
 	}
 
 	template <typename K>
 	constexpr iterator lower_bound( const K& key ) const
 	{
-		return std::lower_bound( m_first, m_last, key, []( auto& entry, const K& key ) { return Compare{}( entry.first, key ); } );
+		return std::lower_bound( m_first, m_last, key, [ cmp = key_compare{} ]( auto& entry, const K& key ) { return cmp( entry.first, key ); } );
 	}
 
 	constexpr iterator upper_bound( const key_type& key ) const
 	{
-		return std::lower_bound( m_first, m_last, key, []( auto& entry, const key_type& key ) { return Compare{}( entry.first, key ); } );
+		return std::lower_bound( m_first, m_last, key, [ cmp = key_compare{} ]( auto& entry, const key_type& key ) { return cmp( entry.first, key ); } );
 	}
 
 	template <typename K>
 	constexpr iterator upper_bound( const K& key ) const
 	{
-		return std::lower_bound( m_first, m_last, key, []( auto& entry, const K& key ) { return Compare{}( entry.first, key ); } );
+		return std::lower_bound( m_first, m_last, key, [ cmp = key_compare{} ]( auto& entry, const K& key ) { return cmp( entry.first, key ); } );
 	}
 
 private:
