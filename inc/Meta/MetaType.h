@@ -10,14 +10,27 @@
 namespace Meta
 {
 
+class MetaType;
 class MetaWriter;
 class MetaReader;
+
+void RegisterMetaType( const MetaType* type );
+void ExportMetaTypes( const char* filename );
 
 class MetaType
 {
 public:
-	MetaType( std::string name ) : m_name{ std::move( name ) } {}
-	MetaType( std::string_view name ) : m_name{ name.begin(), name.end() } {}
+	MetaType( std::string name ) : m_name{ std::move( name ) }
+	{
+		RegisterMetaType( this );
+	}
+
+	MetaType( std::string_view name ) : MetaType{ std::string{ name.begin(), name.end() } } {}
+
+	MetaType( const MetaType& ) = delete;
+	MetaType( MetaType&& ) = delete;
+	MetaType& operator=( const MetaType& ) = delete;
+	MetaType& operator=( MetaType&& ) = delete;
 
 	std::string_view getName() const { return m_name; }
 

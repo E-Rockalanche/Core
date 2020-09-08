@@ -2,9 +2,8 @@
 #define STDX_CONTAINER_HPP
 
 #include <stdx/assert.h>
+#include <stdx/algorithm.h>
 #include <stdx/type_traits.h>
-
-#include <algorithm>
 
 namespace stdx {
 
@@ -147,6 +146,18 @@ constexpr typename stdx::container_traits<Container>::size_type erase_first_of_i
 
 	c.erase( it );
 	return 1;
+}
+
+template <typename Container, typename T>
+constexpr typename stdx::container_traits<Container>::iterator erase_remove( Container& c, const T& value )
+{
+	return c.erase( std::remove( c.begin(), c.end(), value ), c.end() );
+}
+
+template <typename Container, typename Pred>
+constexpr typename stdx::container_traits<Container>::iterator erase_remove_if( Container& c, Pred p )
+{
+	return c.erase( std::remove_if( c.begin(), c.end(), p ), c.end() );
 }
 
 template <typename Container, typename T>

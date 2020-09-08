@@ -11,23 +11,26 @@ namespace stdx {
 
 // unordered contiguous set of of key-value pairs with O(N) lookup time
 // faster lookup than an ordered map with a small data set ( less than 64 )
-template <typename Key, typename T>
+template <typename Key, typename T, typename KeyEqual = std::equal_to<Key>>
 class simple_map
 {
 public:
 	using key_type = Key;
 	using mapped_type = T;
 	using value_type = std::pair<Key, T>;
+	using size_type = typename std::vector<value_type>::size_type;
+	using difference_type = typename std::vector<value_type>::difference_type;
+	using key_equal = KeyEqual;
 	using reference = value_type&;
 	using const_reference = const value_type&;
 	using pointer = value_type*;
 	using const_pointer = const value_type*;
-	using size_type = typename std::vector<value_type>::size_type;
-	using difference_type = typename std::vector<value_type>::difference_type;
 	using iterator = typename std::vector<value_type>::iterator;
 	using const_iterator = typename std::vector<value_type>::const_iterator;
 	using reverse_iterator = typename std::vector<value_type>::reverse_iterator;
 	using const_reverse_iterator = typename std::vector<value_type>::const_reverse_iterator;
+
+	// construction
 
 	simple_map() = default;
 	simple_map( const simple_map& ) = default;
@@ -38,6 +41,8 @@ public:
 		insert( init );
 	}
 
+	// assignment
+
 	simple_map& operator=( const simple_map& other ) = default;
 	simple_map& operator=( simple_map&& other ) = default;
 
@@ -47,6 +52,8 @@ public:
 		insert( init );
 		return *this;
 	}
+
+	// access
 
 	T& operator[]( const key_type& key )
 	{
@@ -70,6 +77,8 @@ public:
 		return it->second;
 	}
 
+	// iterators
+
 	iterator begin() noexcept { return m_data.begin(); }
 	iterator end() noexcept { return m_data.end(); }
 
@@ -88,12 +97,21 @@ public:
 	const_reverse_iterator crbegin() const noexcept { return m_data.crbegin(); }
 	const_reverse_iterator crend() const noexcept { return m_data.crend(); }
 
+	// query
+
 	[[nodiscard]] bool empty() const noexcept { return m_data.empty(); }
 	size_type size() const noexcept { return m_data.size(); }
 	difference_type ssize() const noexcept { return static_cast<difference_type>( size() ); }
 	size_type max_size() const noexcept { return m_data.max_size(); }
 
+	// capacity
+
 	void clear() noexcept { m_data.clear(); }
+	void reserve( size_type capacity ) { m_data.reserve( capacity ); }
+	size_type capacity() const noexcept { return m_data.capacity(); }
+	void shrink_to_fit() { m_data.shrink_to_fit(); }
+
+	// modifiers
 
 	std::pair<iterator, bool> insert( const value_type& value )
 	{
@@ -189,26 +207,19 @@ public:
 
 	iterator erase( const_iterator pos ) noexcept
 	{
-		return stdx::backswap_erase( m_data, pos );
+		m_data.erase( pos );
 	}
 
 	iterator erase( const_iterator first, const_iterator last ) noexcept
 	{
-		return stdx::backswap_erase( m_data, first, last );
+		m_data.erase( first, last );
 	}
 
 	size_type erase( const key_type& key ) noexcept
 	{
-		for( auto it = begin(), last = end(); it != last; ++it )
-		{
-			if ( it->first == key )
-			{
-				std::swap( *it, m_data.back() );
-				m_data.pop_back();
-				return 1;
-			}
-		}
-		return 0;
+		size_type prevSize = size();
+		stdx::erase_remove_if( m_data, [ &key, eq = key_equal{} ]( auto& entry ) { return eq( entry.first, key ); } );
+		return prevSize - size();
 	}
 
 	void swap( simple_map& other ) noexcept
@@ -216,39 +227,45 @@ public:
 		m_data.swap( other.m_data );
 	}
 
+	template <typename KeyCompare>
+	void sort( KeyCompare comp ) noexcept
+	{
+		std::sort( m_data.begin(), m_data.end(), [comp]( auto& lhs, auto& rhs ) { return comp( lhs.first, rhs.first ); } );
+	}
+
 	// lookup
 
 	size_type count( const key_type& key ) const noexcept
 	{
-		return ( find( key ) == end() ) ? 0 : 1;
+		return static_cast<size_type>( std::count_if( m_data.begin(), m_data.end(), [ &key, eq = key_equal{} ]( auto& entry ) { return eq( entry.first, key ); } ) );
 	}
 
 	template <typename K>
 	size_type count( const K& x ) const noexcept
 	{
-		return ( find( x ) == end() ) ? 0 : 1;
+		return static_cast<size_type>( std::count_if( m_data.begin(), m_data.end(), [ &x, eq = key_equal{} ]( auto& entry ) { return eq( entry.first, x ); } ) );
 	}
 
 	iterator find( const key_type& key ) noexcept
 	{
-		return std::find_if( m_data.begin(), m_data.end(), [&]( auto& entry ){ return entry.first == key; } );
+		return std::find_if( m_data.begin(), m_data.end(), [ &key, eq = key_equal{} ]( auto& entry ){ return eq( entry.first, key ); } );
 	}
 
 	const_iterator find( const key_type& key ) const noexcept
 	{
-		return std::find_if( m_data.begin(), m_data.end(), [&]( auto& entry ){ return entry.first == key; } );
+		return std::find_if( m_data.begin(), m_data.end(), [ &key, eq = key_equal{} ]( auto& entry ){ return eq( entry.first, key ); } );
 	}
 
 	template <typename K>
 	iterator find( const K& x ) noexcept
 	{
-		return std::find_if( m_data.begin(), m_data.end(), [&]( auto& entry ){ return entry.first == x; } );
+		return std::find_if( m_data.begin(), m_data.end(), [ &x, eq = key_equal{} ]( auto& entry ){ return eq( entry.first, x ); } );
 	}
 
 	template <typename K>
 	const_iterator find( const K& x ) const noexcept
 	{
-		return std::find_if( m_data.begin(), m_data.end(), [&]( auto& entry ){ return entry.first == x; } );
+		return std::find_if( m_data.begin(), m_data.end(), [ &x, eq = key_equal{} ]( auto& entry ){ return eq( entry.first, x ); } );
 	}
 
 	bool contains( const key_type& key ) const noexcept
@@ -262,12 +279,7 @@ public:
 		return find( x ) != end();
 	}
 
-	// sort underlying data structure to optimize linear lookups
-	template <typename KeyComparator>
-	void sort( KeyComparator c ) noexcept
-	{
-		std::sort( m_data.begin(), m_data.end(), [ c ]( auto& lhs, auto& rhs ) { return c( lhs.first, rhs.first ); } );
-	}
+	key_equal key_eq() const { return key_equal{}; }
 
 private:
 	std::vector<value_type> m_data;

@@ -17,6 +17,8 @@ struct is_unsigned_integral
 template <typename T>
 constexpr bool is_unsigned_integral_v = is_unsigned_integral<T>::value;
 
+// check if type exists in parameter pack
+
 template <typename Type, typename... Types>
 struct is_present
 {
@@ -25,6 +27,20 @@ struct is_present
 
 template <typename Type, typename... Types>
 constexpr bool is_present_v = is_present<Type, Types...>::value;
+
+// get index of type in parameter pack
+
+template <typename T, typename... Ts>
+struct index_of;
+
+template <typename T, typename... Ts>
+struct index_of<T, T, Ts...> : std::integral_constant<std::size_t, 0> {};
+
+template <typename T, typename U, typename... Ts>
+struct index_of<T, U, Ts...> : std::integral_constant<std::size_t, 1 + index_of<T, Ts...>::value> {};
+
+template <typename T, typename... Ts>
+constexpr std::size_t index_of_v = index_of<T, Ts...>::value;
 
 // detection toolkit
 // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4502.pdf

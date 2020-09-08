@@ -8,6 +8,8 @@
 namespace stdx
 {
 
+// FNV1A hashing
+
 namespace detail
 {
 
@@ -59,11 +61,25 @@ constexpr uint8_t hash_fnv1a<uint8_t>( stdx::span<const char> data ) noexcept
 	return static_cast<uint8_t>( ( hash >> 8 ) ^ ( hash & 0xff ) );
 }
 
+
+
 template <typename T>
 inline void hash_combine( std::size_t& seed, const T& value ) noexcept
 {
 	seed ^= std::hash<T>{}( value ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
 }
+
+
+template <typename T, T V>
+struct constant
+{
+	static constexpr T value = V;
+};
+
+template <typename T, T V>
+constexpr T constant_v = constant<T, V>::value;
+
+
 
 namespace detail
 {

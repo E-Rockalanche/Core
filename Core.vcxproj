@@ -153,7 +153,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="inc\EventSink.h" />
-    <ClInclude Include="inc\Json.h" />
     <ClInclude Include="inc\Math\Colour.h" />
     <ClInclude Include="inc\Math\FixedPoint.h" />
     <ClInclude Include="inc\Math\Matrix3.h" />
@@ -192,6 +191,7 @@
     <ClInclude Include="inc\stdx\format.h" />
     <ClInclude Include="inc\stdx\int.h" />
     <ClInclude Include="inc\stdx\iterator.h" />
+    <ClInclude Include="inc\stdx\json.h" />
     <ClInclude Include="inc\stdx\math.h" />
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
@@ -212,8 +212,8 @@
     <ClInclude Include="inc\UniqueId.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Json.cpp" />
     <ClCompile Include="src\Meta\MetaClass.cpp" />
+    <ClCompile Include="src\Meta\MetaType.cpp" />
     <ClCompile Include="src\Profiler.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
