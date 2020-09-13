@@ -12,6 +12,7 @@ class basic_zstring_view
 {
 public:
 	static_assert( std::is_same_v<CharT, Traits::char_type> );
+	static_assert( !std::is_const_v<CharT> );
 
 	using view = std::basic_string_view<CharT, Traits>;
 
@@ -32,16 +33,16 @@ public:
 
 	constexpr basic_zstring_view() noexcept = default;
 
-	constexpr basic_zstring_view( const basic_zstring_view& other ) noexcept = default;
+	constexpr basic_zstring_view( const basic_zstring_view& ) noexcept = default;
 
-	explicit constexpr basic_zstring_view( const CharT* s, size_type count )
+	constexpr basic_zstring_view( const CharT* s, size_type count )
 		: m_data{ s }
 		, m_size{ count }
 	{
 		dbEnsures( m_data[ m_size ] == 0 );
 	}
 
-	explicit constexpr basic_zstring_view( const CharT* s )
+	constexpr basic_zstring_view( const CharT* s )
 		: m_data{ s }
 		, m_size{ Traits::length( s ) }
 	{}
@@ -55,7 +56,7 @@ public:
 	}
 
 	template <typename It, typename End>
-	explicit constexpr basic_zstring_view( It first, End last )
+	constexpr basic_zstring_view( It first, End last )
 		: m_data{ std::addressof( *first ) }
 		, m_size{ static_cast<size_type>( last - first ) }
 	{

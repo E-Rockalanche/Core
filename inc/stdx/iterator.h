@@ -122,8 +122,6 @@ class zip_iterator : public stdx::basic_iterator<detail::zip_iterator_cursor<Its
 {
 public:
 	using stdx::basic_iterator<detail::zip_iterator_cursor<Its...>>::basic_iterator;
-
-	constexpr zip_iterator( Its... iterators ) : zip_iterator( detail::zip_iterator_cursor{ iterators... } ) {}
 };
 
 template <typename... C>

@@ -175,6 +175,7 @@
     <ClInclude Include="inc\Meta\MetaType.h" />
     <ClInclude Include="inc\Profiler.h" />
     <ClInclude Include="inc\stdx\algorithm.h" />
+    <ClInclude Include="inc\stdx\any.h" />
     <ClInclude Include="inc\stdx\array.h" />
     <ClInclude Include="inc\stdx\array2.h" />
     <ClInclude Include="inc\stdx\assert.h" />

@@ -41,7 +41,7 @@ constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
 
 	for ( uint8_t byte : data )
 	{
-		hash = ( hash ^ byte ) * detail::fnv_constants<T>::prime;
+		hash = static_cast<T>( ( hash ^ byte ) * static_cast<unsigned long long>( detail::fnv_constants<T>::prime ) );
 	}
 
 	return hash;
@@ -69,15 +69,14 @@ inline void hash_combine( std::size_t& seed, const T& value ) noexcept
 	seed ^= std::hash<T>{}( value ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
 }
 
-
-template <typename T, T V>
+template <auto V>
 struct constant
 {
-	static constexpr T value = V;
+	static constexpr auto value = V;
 };
 
-template <typename T, T V>
-constexpr T constant_v = constant<T, V>::value;
+template <auto V>
+constexpr auto constant_v = constant<V>::value;
 
 
 

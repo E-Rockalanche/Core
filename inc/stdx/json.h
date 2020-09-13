@@ -23,17 +23,10 @@ namespace detail
 
 	template <typename C>
 	using key_eq_t = decltype( std::declval<C>().key_eq() );
-}
-
-class json;
-
-namespace detail
-{
 
 	template <typename Json>
 	class json_iterator
 	{
-		static_assert( std::is_same_v<json, std::remove_const_t<Json>> );
 	public:
 		using size_type = std::size_t;
 		using difference_type = std::ptrdiff_t;
@@ -51,11 +44,11 @@ namespace detail
 		using mapped_type = typename Json::object_type::mapped_type;
 
 		constexpr json_iterator() noexcept = default;
-		json_iterator( Json& json, index_type index )
-			: m_json{ json }
+		json_iterator( Json& basic_json, index_type index )
+			: m_json{ basic_json }
 			, m_index{ index }
 	#ifdef DEBUG
-			, m_type{ json.get_type() }
+			, m_type{ basic_json.get_type() }
 	#endif
 		{}
 
@@ -115,7 +108,7 @@ namespace detail
 		Json* m_json = nullptr;
 		index_type m_index = 0;
 
-		friend class stdx::json;
+		friend class Json;
 
 	#ifdef DEBUG
 		Json::type m_type = Json::type::null;
@@ -130,7 +123,8 @@ public:
 	using std::exception::exception;
 };
 
-class json
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+class basic_json
 {
 public:
 	struct null_type {};
@@ -139,22 +133,22 @@ public:
 
 	using bool_type = bool;
 
-	using char_type = char;
-	using string_type = std::basic_string<char_type>;
+	using string_type = String;
+	using char_type = std::remove_const_t<typename stdx::container_traits<String>::value_type>;
 	using view_type = std::basic_string_view<char_type>;
 	using zview_type = stdx::basic_zstring_view<char_type>;
 
-	using array_type = std::vector<json>;
+	using array_type = Vector<basic_json>;
 
 	using key_type = string_type;
-	using mapped_type = json;
-	using object_type = stdx::simple_map<key_type, mapped_type>;
+	using mapped_type = basic_json;
+	using object_type = Map<key_type, mapped_type>;
 
 	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
 
-	using iterator = detail::json_iterator<json>;
-	using const_iterator = detail::json_iterator<const json>;
+	using iterator = detail::json_iterator<basic_json>;
+	using const_iterator = detail::json_iterator<const basic_json>;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
@@ -172,58 +166,58 @@ public:
 
 	// construction
 
-	json() noexcept = default;
-	json( const json& other ) = default;
-	json( json&& other ) noexcept : m_data{ std::exchange( other.m_data, null_type{} ) } {}
+	basic_json() noexcept = default;
+	basic_json( const basic_json& other ) = default;
+	basic_json( basic_json&& other ) noexcept : m_data{ std::exchange( other.m_data, null_type{} ) } {}
 
-	json( std::nullptr_t ) noexcept {}
-	json( number_type value ) noexcept : m_data{ value } {}
-	json( bool_type value ) noexcept : m_data{ value } {}
+	basic_json( std::nullptr_t ) noexcept {}
+	basic_json( number_type value ) noexcept : m_data{ value } {}
+	basic_json( bool_type value ) noexcept : m_data{ value } {}
 
-	json( const string_type& value ) noexcept : m_data{ value } {}
-	json( string_type&& value ) noexcept : m_data{ std::move( value ) } {}
-	json( view_type value ) : json( string_type{ value } ) {}
-	json( const char_type* value ) : json( string_type{ value } ) {}
+	basic_json( const string_type& value ) noexcept : m_data{ value } {}
+	basic_json( string_type&& value ) noexcept : m_data{ std::move( value ) } {}
+	basic_json( view_type value ) : basic_json( string_type{ value } ) {}
+	basic_json( const char_type* value ) : basic_json( string_type{ value } ) {}
 	template <std::size_t N>
-	json( const char_type( &value )[ N ] ) : json( string_type{ value } ) {}
+	basic_json( const char_type( &value )[ N ] ) : basic_json( string_type{ value } ) {}
 
-	json( const array_type& value ) : m_data{ value } {}
-	json( array_type&& value ) : m_data{ std::move( value ) } {}
-	json( std::initializer_list<json> init ) : json( array_type{ init } ) {}
+	basic_json( const array_type& value ) : m_data{ value } {}
+	basic_json( array_type&& value ) : m_data{ std::move( value ) } {}
+	basic_json( std::initializer_list<basic_json> init ) : basic_json( array_type{ init } ) {}
 
-	json( const object_type& value ) : m_data{ value } {}
-	json( object_type&& value ) : m_data{ std::move( value ) } {}
-	json( std::initializer_list<std::pair<std::string, json>> init ) : json( object_type{ init } ) {}
+	basic_json( const object_type& value ) : m_data{ value } {}
+	basic_json( object_type&& value ) : m_data{ std::move( value ) } {}
+	basic_json( std::initializer_list<std::pair<std::string, basic_json>> init ) : basic_json( object_type{ init } ) {}
 
 	template <typename T>
-	json( T&& t );
+	basic_json( T&& t );
 
-	static json null() { return json{}; }
-	static json boolean( bool_type value = false ) { return json{ value }; }
-	static json number( number_type value = 0 ) { return json{ value }; }
+	static basic_json null() { return basic_json{}; }
+	static basic_json boolean( bool_type value = false ) { return basic_json{ value }; }
+	static basic_json number( number_type value = 0 ) { return basic_json{ value }; }
 
-	static json string() { return json{ string_type{} }; }
-	static json string( const string_type& value ) { return json{ value }; }
-	static json string( string_type&& value ) { return json{ std::move( value ) }; }
-	static json string( view_type value ) { return json{ value }; }
-	static json string( const char_type* value ) { return json{ value }; }
+	static basic_json string() { return basic_json{ string_type{} }; }
+	static basic_json string( const string_type& value ) { return basic_json{ value }; }
+	static basic_json string( string_type&& value ) { return basic_json{ std::move( value ) }; }
+	static basic_json string( view_type value ) { return basic_json{ value }; }
+	static basic_json string( const char_type* value ) { return basic_json{ value }; }
 	template <std::size_t N>
-	static json string( const char_type( &value )[ N ] ) { return json{ value }; }
+	static basic_json string( const char_type( &value )[ N ] ) { return basic_json{ value }; }
 
-	static json array() { return json{ array_type{} }; }
-	static json array( const array_type& value ) { return json{ value }; }
-	static json array( array_type&& value ) { return json{ std::move( value ) }; }
-	static json array( std::initializer_list<json> init ) { return json{ init }; }
+	static basic_json array() { return basic_json{ array_type{} }; }
+	static basic_json array( const array_type& value ) { return basic_json{ value }; }
+	static basic_json array( array_type&& value ) { return basic_json{ std::move( value ) }; }
+	static basic_json array( std::initializer_list<basic_json> init ) { return basic_json{ init }; }
 
-	static json object() { return json{ object_type{} }; }
-	static json object( const object_type& value ) { return json{ value }; }
-	static json object( object_type&& value ) { return json{ std::move( value ) }; }
-	static json object( std::initializer_list<object_type::value_type> init ) { return json{ init }; }
+	static basic_json object() { return basic_json{ object_type{} }; }
+	static basic_json object( const object_type& value ) { return basic_json{ value }; }
+	static basic_json object( object_type&& value ) { return basic_json{ std::move( value ) }; }
+	static basic_json object( std::initializer_list<object_type::value_type> init ) { return basic_json{ init }; }
 
 	// assignment
 
-	json& operator=( const json& other ) = default;
-	json& operator=( json&& other ) noexcept = default;
+	basic_json& operator=( const basic_json& other ) = default;
+	basic_json& operator=( basic_json&& other ) noexcept = default;
 
 	// conversion
 
@@ -268,7 +262,7 @@ public:
 		return s;
 	}
 
-	static json parse( zview_type v )
+	static basic_json parse( zview_type v )
 	{
 		size_type i = 0;
 		while ( stdx::isspace( v[ i ] ) )
@@ -413,7 +407,7 @@ public:
 		}
 	}
 
-	void swap( json&& other )
+	void swap( basic_json&& other )
 	{
 		auto temp = std::move( m_data );
 		m_data = std::move( other.m_data );
@@ -425,22 +419,22 @@ public:
 	string_type& str() { return std::get<string_type>( m_data ); }
 	const string_type& str() const { return std::get<string_type>( m_data ); }
 
-	json& assign( size_type count, char_type c ) { return *this = string_type( count, c ); }
-	json& assign( const string_type& s ) { return *this = s; }
-	json& assign( const string_type& s, size_type pos, size_type count ) { return *this = string_type( s, pos, count ); }
-	json& assign( string_type&& s ) noexcept { return *this = std::move( s ); }
-	json& assign( const char_type* s, size_type count ) { return *this = string_type( s, count ); }
-	json& assign( const char_type* s ) { return *this = string_type( s ); }
+	basic_json& assign( size_type count, char_type c ) { return *this = string_type( count, c ); }
+	basic_json& assign( const string_type& s ) { return *this = s; }
+	basic_json& assign( const string_type& s, size_type pos, size_type count ) { return *this = string_type( s, pos, count ); }
+	basic_json& assign( string_type&& s ) noexcept { return *this = std::move( s ); }
+	basic_json& assign( const char_type* s, size_type count ) { return *this = string_type( s, count ); }
+	basic_json& assign( const char_type* s ) { return *this = string_type( s ); }
 	template <typename InputIt>
-	json& assign( InputIt first, InputIt last ) { return *this = string_type( first, last ); }
-	json& assign( std::initializer_list<char_type> init ) { return *this = string_type( init ); }
+	basic_json& assign( InputIt first, InputIt last ) { return *this = string_type( first, last ); }
+	basic_json& assign( std::initializer_list<char_type> init ) { return *this = string_type( init ); }
 	template <typename T>
-	json& assign( const T& t ) { return *this = string_type( t ); }
+	basic_json& assign( const T& t ) { return *this = string_type( t ); }
 	template <typename T>
-	json& assign( const T& t, size_type pos, size_type count = npos ) { return *this = string_type( t, pos, count ); }
-	json& assign( const json& j ) { return *this = std::get<string_type>( j.m_data ); }
-	json& assign( const json& j, size_type pos, size_type count ) { return *this = string_type( std::get<string_type>( j.m_data ), pos, count ); }
-	json& assign( json&& j ) noexcept
+	basic_json& assign( const T& t, size_type pos, size_type count = npos ) { return *this = string_type( t, pos, count ); }
+	basic_json& assign( const basic_json& j ) { return *this = std::get<string_type>( j.m_data ); }
+	basic_json& assign( const basic_json& j, size_type pos, size_type count ) { return *this = string_type( std::get<string_type>( j.m_data ), pos, count ); }
+	basic_json& assign( basic_json&& j ) noexcept
 	{
 		m_data = std::move( std::get<string_type>( j.m_data ) );
 		j = nullptr;
@@ -452,28 +446,28 @@ public:
 	operator zview_type() const { auto& s = str(); return zview_type{ s.c_str(), s.size() }; }
 	size_type length() const { return str().length(); }
 
-	json& append( size_type count, char_type c ) { str().append( count, c ); return *this; }
-	json& append( const string_type& s ) { str().append( s ); return *this; }
-	json& append( const string_type& s, size_type pos, size_type count = npos ) { str().append( s, pos, count ); return *this; }
-	json& append( const char_type* s, size_type count ) { str().append( s, count ); return *this; }
-	json& append( const char_type* s ) { str().append( s ); return *this; }
+	basic_json& append( size_type count, char_type c ) { str().append( count, c ); return *this; }
+	basic_json& append( const string_type& s ) { str().append( s ); return *this; }
+	basic_json& append( const string_type& s, size_type pos, size_type count = npos ) { str().append( s, pos, count ); return *this; }
+	basic_json& append( const char_type* s, size_type count ) { str().append( s, count ); return *this; }
+	basic_json& append( const char_type* s ) { str().append( s ); return *this; }
 	template <typename InputIt>
-	json& append( InputIt first, InputIt last ) { str().append( first, last ); return *this; }
-	json& append( std::initializer_list<char_type> init ) { str().append( init ); return *this; }
+	basic_json& append( InputIt first, InputIt last ) { str().append( first, last ); return *this; }
+	basic_json& append( std::initializer_list<char_type> init ) { str().append( init ); return *this; }
 	template <typename T>
-	json& append( const T& t ) { str().append( t ); return *this; }
+	basic_json& append( const T& t ) { str().append( t ); return *this; }
 	template <typename T>
-	json& append( const T& t, size_type pos, size_type count = npos ) { str().append( t, pos, count ); return *this; }
-	json& append( const json& j ) { str().append( std::get<string_type>( j.m_data ) ); return *this; }
-	json& append( const json& j, size_type pos, size_type count = npos ) { str().append( std::get<string_type>( j.m_data ), pos, count ); return *this; }
+	basic_json& append( const T& t, size_type pos, size_type count = npos ) { str().append( t, pos, count ); return *this; }
+	basic_json& append( const basic_json& j ) { str().append( std::get<string_type>( j.m_data ) ); return *this; }
+	basic_json& append( const basic_json& j, size_type pos, size_type count = npos ) { str().append( std::get<string_type>( j.m_data ), pos, count ); return *this; }
 
-	json& operator+=( const string_type& s ) { str() += s; return *this; }
-	json& operator+=( const char_type c ) { str() += c; return *this; }
-	json& operator+=( const char_type* s ) { str() += s; return *this; }
-	json& operator+=( std::initializer_list<char_type> init ) { str() += init; return *this; }
+	basic_json& operator+=( const string_type& s ) { str() += s; return *this; }
+	basic_json& operator+=( const char_type c ) { str() += c; return *this; }
+	basic_json& operator+=( const char_type* s ) { str() += s; return *this; }
+	basic_json& operator+=( std::initializer_list<char_type> init ) { str() += init; return *this; }
 	template <typename T>
-	json& operator+=( const T& t ) { str() += t; return *this; }
-	json& operator+=( const json& j ) { str() += std::get<string_type>( j.m_data ); return *this; }
+	basic_json& operator+=( const T& t ) { str() += t; return *this; }
+	basic_json& operator+=( const basic_json& j ) { str() += std::get<string_type>( j.m_data ); return *this; }
 
 	int compare( const string_type& s ) const { return str().compare( s ); }
 	int compare( size_type pos1, size_type count1, const string_type& s ) const { return str().compare( pos1, count1, s ); }
@@ -487,9 +481,9 @@ public:
 	int compare( size_type pos1, size_type count1, const T& s ) const { return str().compare( pos1, count1, s ); }
 	template <typename T>
 	int compare( size_type pos1, size_type count1, const T& s, size_type pos2, size_type count2 = npos ) const { return str().compare( pos1, count1, s, pos2, count2 ); }
-	int compare( const json& j ) const { return str().compare( std::get<string_type>( j.m_data ) ); }
-	int compare( size_type pos1, size_type count1, const json& j ) const { return str().compare( pos1, count1, std::get<string_type>( j.m_data ) ); }
-	int compare( size_type pos1, size_type count1, const json& j, size_type pos2, size_type count2 = npos ) const { return str().compare( pos1, count1, std::get<string_type>( j.m_data ), pos2, count2 ); }
+	int compare( const basic_json& j ) const { return str().compare( std::get<string_type>( j.m_data ) ); }
+	int compare( size_type pos1, size_type count1, const basic_json& j ) const { return str().compare( pos1, count1, std::get<string_type>( j.m_data ) ); }
+	int compare( size_type pos1, size_type count1, const basic_json& j, size_type pos2, size_type count2 = npos ) const { return str().compare( pos1, count1, std::get<string_type>( j.m_data ), pos2, count2 ); }
 
 	bool starts_with( view_type sv ) const { return view_type{ str() }.substr( 0, sv.size() ) == sv; }
 	bool starts_with( const char_type* s ) const { return starts_with( view_type{ s } ); }
@@ -511,27 +505,27 @@ public:
 		return s.empty() ? false : ( s.back() == c );
 	}
 
-	json& replace( size_type pos, size_type count, const string_type& s ) { str().replace( pos, count, s ); return *this; }
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, const string_type& s ) { str().replace( first, last, s ); return *this; }
-	json& replace( size_type pos, size_type count, const string_type& s, size_type pos2, size_type count2 = npos ) { str().replace( pos, count, s, pos2, count2 ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const string_type& s ) { str().replace( pos, count, s ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, const string_type& s ) { str().replace( first, last, s ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const string_type& s, size_type pos2, size_type count2 = npos ) { str().replace( pos, count, s, pos2, count2 ); return *this; }
 	template <typename InputIt>
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, InputIt first2, InputIt last2 ) { str().replace( first, last, first2, last2 ); return *this; }
-	json& replace( size_type pos, size_type count, const char_type* s, size_type count2 ) { str().replace( pos, count, s, count2 ); return *this; }
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, const char_type* s, size_type count ) { str().replace( first, last, s, count ); return *this; }
-	json& replace( size_type pos, size_type count, const char_type* s ) { str().replace( pos, count, s ); return *this; }
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, const char_type* s ) { str().replace( first, last, s ); return *this; }
-	json& replace( size_type pos, size_type count, size_type count2, char_type c ) { str().replace( pos, count, count2, c ); return *this; }
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, size_type count2, char_type c ) { str().replace( first, last, count2, c ); return *this; }
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, std::initializer_list<char_type> init ) { str().replace( first, last, init ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, InputIt first2, InputIt last2 ) { str().replace( first, last, first2, last2 ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const char_type* s, size_type count2 ) { str().replace( pos, count, s, count2 ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, const char_type* s, size_type count ) { str().replace( first, last, s, count ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const char_type* s ) { str().replace( pos, count, s ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, const char_type* s ) { str().replace( first, last, s ); return *this; }
+	basic_json& replace( size_type pos, size_type count, size_type count2, char_type c ) { str().replace( pos, count, count2, c ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, size_type count2, char_type c ) { str().replace( first, last, count2, c ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, std::initializer_list<char_type> init ) { str().replace( first, last, init ); return *this; }
 	template <typename T>
-	json& replace( size_type pos, size_type count, const T& t ) { str().replace( pos, count, t ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const T& t ) { str().replace( pos, count, t ); return *this; }
 	template <typename T>
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, const T& t ) { str().replace( first, last, t ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, const T& t ) { str().replace( first, last, t ); return *this; }
 	template <typename T>
-	json& replace( size_type pos, size_type count, const T& t, size_type pos2, size_type count2 = npos ) { str().replace( pos, count, t, pos2, count2 ); return *this; }
-	json& replace( size_type pos, size_type count, const json& j ) { str().replace( pos, count, std::get<string_type>( j.m_data ) ); return *this; }
-	json& replace( string_type::const_iterator first, string_type::const_iterator last, const json& j ) { str().replace( first, last, std::get<string_type>( j.m_data ) ); return *this; }
-	json& replace( size_type pos, size_type count, const json& j, size_type pos2, size_type count2 = npos ) { str().replace( pos, count, std::get<string_type>( j.m_data ), pos2, count2 ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const T& t, size_type pos2, size_type count2 = npos ) { str().replace( pos, count, t, pos2, count2 ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const basic_json& j ) { str().replace( pos, count, std::get<string_type>( j.m_data ) ); return *this; }
+	basic_json& replace( string_type::const_iterator first, string_type::const_iterator last, const basic_json& j ) { str().replace( first, last, std::get<string_type>( j.m_data ) ); return *this; }
+	basic_json& replace( size_type pos, size_type count, const basic_json& j, size_type pos2, size_type count2 = npos ) { str().replace( pos, count, std::get<string_type>( j.m_data ), pos2, count2 ); return *this; }
 
 	view_type substr( size_type pos = 0, size_type count = npos ) const { return str().substr( pos, count ); }
 
@@ -544,7 +538,7 @@ public:
 	size_type find( char_type c, size_type pos ) const { return str().find( c, pos ); }
 	template <typename T>
 	size_type find( const T& t, size_type pos ) const { return str().find( t, pos ); }
-	size_type find( const json& j, size_type pos ) const { return str().find( std::get<string_type>( j.m_data ), pos ); }
+	size_type find( const basic_json& j, size_type pos ) const { return str().find( std::get<string_type>( j.m_data ), pos ); }
 
 	size_type rfind( const string_type& s, size_type pos ) const { return str().rfind( s, pos ); }
 	size_type rfind( const char_type* s, size_type pos, size_type count ) const { return str().rfind( s, pos, count ); }
@@ -552,7 +546,7 @@ public:
 	size_type rfind( char_type c, size_type pos ) const { return str().rfind( c, pos ); }
 	template <typename T>
 	size_type rfind( const T& t, size_type pos ) const { return str().rfind( t, pos ); }
-	size_type rfind( const json& j, size_type pos ) const { return str().rfind( std::get<string_type>( j.m_data ), pos ); }
+	size_type rfind( const basic_json& j, size_type pos ) const { return str().rfind( std::get<string_type>( j.m_data ), pos ); }
 
 	size_type find_first_of( const string_type& s, size_type pos ) const { return str().find_first_of( s, pos ); }
 	size_type find_first_of( const char_type* s, size_type pos, size_type count ) const { return str().find_first_of( s, pos, count ); }
@@ -560,7 +554,7 @@ public:
 	size_type find_first_of( char_type c, size_type pos ) const { return str().find_first_of( c, pos ); }
 	template <typename T>
 	size_type find_first_of( const T& t, size_type pos ) const { return str().find_first_of( t, pos ); }
-	size_type find_first_of( const json& j, size_type pos ) const { return str().find_first_of( std::get<string_type>( j.m_data ), pos ); }
+	size_type find_first_of( const basic_json& j, size_type pos ) const { return str().find_first_of( std::get<string_type>( j.m_data ), pos ); }
 
 	size_type find_first_not_of( const string_type& s, size_type pos ) const { return str().find_first_not_of( s, pos ); }
 	size_type find_first_not_of( const char_type* s, size_type pos, size_type count ) const { return str().find_first_not_of( s, pos, count ); }
@@ -568,7 +562,7 @@ public:
 	size_type find_first_not_of( char_type c, size_type pos ) const { return str().find_first_not_of( c, pos ); }
 	template <typename T>
 	size_type find_first_not_of( const T& t, size_type pos ) const { return str().find_first_not_of( t, pos ); }
-	size_type find_first_not_of( const json& j, size_type pos ) const { return str().find_first_not_of( std::get<string_type>( j.m_data ), pos ); }
+	size_type find_first_not_of( const basic_json& j, size_type pos ) const { return str().find_first_not_of( std::get<string_type>( j.m_data ), pos ); }
 
 	size_type find_last_of( const string_type& s, size_type pos ) const { return str().find_last_of( s, pos ); }
 	size_type find_last_of( const char_type* s, size_type pos, size_type count ) const { return str().find_last_of( s, pos, count ); }
@@ -576,7 +570,7 @@ public:
 	size_type find_last_of( char_type c, size_type pos ) const { return str().find_last_of( c, pos ); }
 	template <typename T>
 	size_type find_last_of( const T& t, size_type pos ) const { return str().find_last_of( t, pos ); }
-	size_type find_last_of( const json& j, size_type pos ) const { return str().find_last_of( std::get<string_type>( j.m_data ), pos ); }
+	size_type find_last_of( const basic_json& j, size_type pos ) const { return str().find_last_of( std::get<string_type>( j.m_data ), pos ); }
 
 	size_type find_last_not_of( const string_type& s, size_type pos ) const { return str().find_last_not_of( s, pos ); }
 	size_type find_last_not_of( const char_type* s, size_type pos, size_type count ) const { return str().find_last_not_of( s, pos, count ); }
@@ -584,34 +578,34 @@ public:
 	size_type find_last_not_of( char_type c, size_type pos ) const { return str().find_last_not_of( c, pos ); }
 	template <typename T>
 	size_type find_last_not_of( const T& t, size_type pos ) const { return str().find_last_not_of( t, pos ); }
-	size_type find_last_not_of( const json& j, size_type pos ) const { return str().find_last_not_of( std::get<string_type>( j.m_data ), pos ); }
+	size_type find_last_not_of( const basic_json& j, size_type pos ) const { return str().find_last_not_of( std::get<string_type>( j.m_data ), pos ); }
 
 	// array operators
 
 	array_type& arr() { return std::get<array_type>( m_data ); }
 	const array_type& arr() const { return std::get<array_type>( m_data ); }
 
-	json& at( size_type index ) noexcept { return arr().at( index ); }
-	const json& at( size_type index ) const noexcept { return arr().at( index ); }
+	basic_json& at( size_type index ) noexcept { return arr().at( index ); }
+	const basic_json& at( size_type index ) const noexcept { return arr().at( index ); }
 
-	json& operator[]( size_type index ) noexcept { return arr()[ index ]; }
-	const json& operator[]( size_type index ) const noexcept { return arr()[ index ]; }
+	basic_json& operator[]( size_type index ) noexcept { return arr()[ index ]; }
+	const basic_json& operator[]( size_type index ) const noexcept { return arr()[ index ]; }
 
-	json& front() { return arr().front(); }
-	const json& front() const { return arr().front(); }
+	basic_json& front() { return arr().front(); }
+	const basic_json& front() const { return arr().front(); }
 
-	json& back() { return arr().back(); }
-	const json& back() const { return arr().back(); }
+	basic_json& back() { return arr().back(); }
+	const basic_json& back() const { return arr().back(); }
 
-	json* data() { return arr().data(); }
-	const json* data() const { return arr().data(); }
+	basic_json* data() { return arr().data(); }
+	const basic_json* data() const { return arr().data(); }
 
-	void insert( array_type::const_iterator pos, const json& j ) { arr().insert( pos, j ); }
-	void insert( array_type::const_iterator pos, json&& j ) { arr().insert( pos, std::move( j ) ); }
-	void insert( array_type::const_iterator pos, size_type count, const json& j ) { arr().insert( pos, count, j ); }
+	void insert( array_type::const_iterator pos, const basic_json& j ) { arr().insert( pos, j ); }
+	void insert( array_type::const_iterator pos, basic_json&& j ) { arr().insert( pos, std::move( j ) ); }
+	void insert( array_type::const_iterator pos, size_type count, const basic_json& j ) { arr().insert( pos, count, j ); }
 	template <typename InputIt>
 	void insert( array_type::const_iterator pos, InputIt first, InputIt last ) { arr().insert( pos, first, last ); }
-	void insert( array_type::const_iterator pos, std::initializer_list<json> init ) { arr().insert( pos, init ); }
+	void insert( array_type::const_iterator pos, std::initializer_list<basic_json> init ) { arr().insert( pos, init ); }
 
 	template <typename... Args>
 	void emplace( array_type::const_iterator pos, Args... args ) { arr().emplace( pos, std::forward<Args>( args )... ); }
@@ -619,8 +613,8 @@ public:
 	array_type::iterator erase( array_type::const_iterator pos ) { return arr().erase( pos ); }
 	array_type::iterator erase( array_type::const_iterator first, array_type::const_iterator last ) { return arr().erase( first, last ); }
 
-	void push_back( const json& j ) { return arr().push_back( j ); }
-	void push_back( json&& j ) { return arr().push_back( std::move( j ) ); }
+	void push_back( const basic_json& j ) { return arr().push_back( j ); }
+	void push_back( basic_json&& j ) { return arr().push_back( std::move( j ) ); }
 
 	template <typename... Args>
 	void emplace_back( Args&&... args ) { return arr().emplace_back( std::forward<Args>( args )... ); }
@@ -632,14 +626,14 @@ public:
 	object_type& items() { return std::get<object_type>( m_data ); }
 	const object_type& items() const { return std::get<object_type>( m_data ); }
 
-	json& operator[]( const string_type& key ) noexcept
+	basic_json& operator[]( const string_type& key ) noexcept
 	{
 		if ( is_null() )
 			m_data = object_type{};
 		return items()[ key ];
 	}
 
-	json& operator[]( string_type&& key ) noexcept
+	basic_json& operator[]( string_type&& key ) noexcept
 	{
 		if ( is_null() )
 			m_data = object_type{};
@@ -694,19 +688,19 @@ public:
 
 	// non member functions
 
-	friend bool operator==( const json& lhs, const json& rhs ) noexcept;
-	friend bool operator!=( const json& lhs, const json& rhs ) noexcept;
-	friend bool operator<( const json& lhs, const json& rhs ) noexcept;
-	friend bool operator>( const json& lhs, const json& rhs ) noexcept;
-	friend bool operator<=( const json& lhs, const json& rhs ) noexcept;
-	friend bool operator>=( const json& lhs, const json& rhs ) noexcept;
+	friend bool operator==( const basic_json& lhs, const basic_json& rhs ) noexcept;
+	friend bool operator!=( const basic_json& lhs, const basic_json& rhs ) noexcept;
+	friend bool operator<( const basic_json& lhs, const basic_json& rhs ) noexcept;
+	friend bool operator>( const basic_json& lhs, const basic_json& rhs ) noexcept;
+	friend bool operator<=( const basic_json& lhs, const basic_json& rhs ) noexcept;
+	friend bool operator>=( const basic_json& lhs, const basic_json& rhs ) noexcept;
 
 private:
-	std::basic_string<char_type> dump_imp( std::basic_string<char_type>& s, size_type tab_width, size_type depth ) const;
+	void dump_imp( std::basic_string<char_type>& s, size_type tab_width, size_type depth ) const;
 
 	static void serialize_to( std::basic_string<char_type>& s, view_type v );
 
-	static json parse_imp( zview_type v, size_type& pos );
+	static basic_json parse_imp( zview_type v, size_type& pos );
 
 	static string_type parse_string( zview_type v, size_type& pos );
 	static number_type parse_number( zview_type v, size_type& pos );
@@ -720,8 +714,9 @@ private:
 };
 
 
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
 template <typename T>
-json::json( T&& t )
+basic_json<String, Vector, Map>::basic_json( T&& t )
 {
 	if constexpr ( std::is_integral_v<T> || std::is_floating_point_v<T> )
 	{
@@ -741,12 +736,13 @@ json::json( T&& t )
 	}
 	else
 	{
-		static_assert( "cannot convert T to json" );
+		static_assert( "cannot convert T to basic_json" );
 	}
 }
 
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
 template <typename T>
-T json::get() const
+T basic_json<String, Vector, Map>::get() const
 {
 	if constexpr ( std::is_integral_v<T> || std::is_floating_point_v<T> )
 	{
@@ -768,13 +764,14 @@ T json::get() const
 	}
 	else
 	{
-		static_assert( false, "cannot convert json to T" );
+		static_assert( false, "cannot convert basic_json to T" );
 		return T{};
 	}
 }
 
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
 template <typename T>
-T json::get() &&
+T basic_json<String, Vector, Map>::get() &&
 {
 	if constexpr ( std::is_integral_v<T> || std::is_floating_point_v<T> )
 	{
@@ -811,49 +808,56 @@ T json::get() &&
 	}
 }
 
-inline bool operator==( const json& lhs, const json& rhs )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+ bool operator==( const basic_json<String, Vector, Map>& lhs, const basic_json<String, Vector, Map>& rhs )
 {
 	const auto type = lhs.get_type();
 	if ( type != rhs.get_type() )
-		throw json_exception( "json type compare mismatch" );
+		throw json_exception( "basic_json type compare mismatch" );
 
 	switch ( type )
 	{
-		case json::type::null: return true;
-		case json::type::boolean: return std::get<json::bool_type>( lhs.m_data ) == std::get<json::bool_type>( rhs.m_data );
-		case json::type::number: return std::get<json::number_type>( lhs.m_data ) == std::get<json::number_type>( rhs.m_data );
-		case json::type::string: return std::get<json::string_type>( lhs.m_data ) == std::get<json::string_type>( rhs.m_data );
-		case json::type::array: return std::get<json::array_type>( lhs.m_data ) == std::get<json::array_type>( rhs.m_data );
-		case json::type::object: return std::get<json::object_type>( lhs.m_data ) == std::get<json::object_type>( rhs.m_data );
+		case basic_json::type::null: return true;
+		case basic_json::type::boolean: return std::get<basic_json::bool_type>( lhs.m_data ) == std::get<basic_json::bool_type>( rhs.m_data );
+		case basic_json::type::number: return std::get<basic_json::number_type>( lhs.m_data ) == std::get<basic_json::number_type>( rhs.m_data );
+		case basic_json::type::string: return std::get<basic_json::string_type>( lhs.m_data ) == std::get<basic_json::string_type>( rhs.m_data );
+		case basic_json::type::array: return std::get<basic_json::array_type>( lhs.m_data ) == std::get<basic_json::array_type>( rhs.m_data );
+		case basic_json::type::object: return std::get<basic_json::object_type>( lhs.m_data ) == std::get<basic_json::object_type>( rhs.m_data );
 	}
 }
 
-inline bool operator!=( const json& lhs, const json& rhs ) { return !( lhs == rhs ); }
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+ bool operator!=( const basic_json<String, Vector, Map>& lhs, const basic_json<String, Vector, Map>& rhs ) { return !( lhs == rhs ); }
 
-inline bool operator<( const json& lhs, const json& rhs )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+ bool operator<( const basic_json<String, Vector, Map>& lhs, const basic_json<String, Vector, Map>& rhs )
 {
 	const auto type = lhs.get_type();
 	if ( type != rhs.get_type() )
-		throw json_exception( "json type compare mismatch" );
+		throw json_exception( "basic_json type compare mismatch" );
 
 	switch ( type )
 	{
-		case json::type::null: return false;
-		case json::type::boolean: return std::get<json::bool_type>( lhs.m_data ) < std::get<json::bool_type>( rhs.m_data );
-		case json::type::number: return std::get<json::number_type>( lhs.m_data ) < std::get<json::number_type>( rhs.m_data );
-		case json::type::string: return std::get<json::string_type>( lhs.m_data ) < std::get<json::string_type>( rhs.m_data );
-		case json::type::array: return std::get<json::array_type>( lhs.m_data ) < std::get<json::array_type>( rhs.m_data );
-		case json::type::object: return std::get<json::object_type>( lhs.m_data ) < std::get<json::object_type>( rhs.m_data );
+		case basic_json::type::null: return false;
+		case basic_json::type::boolean: return std::get<basic_json::bool_type>( lhs.m_data ) < std::get<basic_json::bool_type>( rhs.m_data );
+		case basic_json::type::number: return std::get<basic_json::number_type>( lhs.m_data ) < std::get<basic_json::number_type>( rhs.m_data );
+		case basic_json::type::string: return std::get<basic_json::string_type>( lhs.m_data ) < std::get<basic_json::string_type>( rhs.m_data );
+		case basic_json::type::array: return std::get<basic_json::array_type>( lhs.m_data ) < std::get<basic_json::array_type>( rhs.m_data );
+		case basic_json::type::object: return std::get<basic_json::object_type>( lhs.m_data ) < std::get<basic_json::object_type>( rhs.m_data );
 	}
 }
 
-inline bool operator>( const json& lhs, const json& rhs ) { return rhs < lhs; }
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+ bool operator>( const basic_json<String, Vector, Map>& lhs, const basic_json<String, Vector, Map>& rhs ) { return rhs < lhs; }
 
-inline bool operator<=( const json& lhs, const json& rhs ) { return !( lhs > rhs ); }
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+ bool operator<=( const basic_json<String, Vector, Map>& lhs, const basic_json<String, Vector, Map>& rhs ) { return !( lhs > rhs ); }
 
-inline bool operator>=( const json& lhs, const json& rhs ) { return !( lhs < rhs ); }
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+ bool operator>=( const basic_json<String, Vector, Map>& lhs, const basic_json<String, Vector, Map>& rhs ) { return !( lhs < rhs ); }
 
-inline std::string json::dump_imp( std::string& s, size_type tab_width, size_type depth ) const
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+void basic_json<String, Vector, Map>::dump_imp( std::basic_string<char_type>& s, size_type tab_width, size_type depth ) const
 {
 	switch ( get_type() )
 	{
@@ -906,7 +910,8 @@ inline std::string json::dump_imp( std::string& s, size_type tab_width, size_typ
 	}
 }
 
-inline void json::serialize_to( std::basic_string<char_type>& s, view_type v )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+void basic_json<String, Vector, Map>::serialize_to( std::basic_string<char_type>& s, view_type v )
 {
 	s.reserve( s.size() + v.size() );
 	for ( auto c : v )
@@ -925,14 +930,15 @@ inline void json::serialize_to( std::basic_string<char_type>& s, view_type v )
 	}
 }
 
-inline json json::parse_imp( zview_type v, size_type& pos )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+basic_json<String, Vector, Map> basic_json<String, Vector, Map>::parse_imp( zview_type v, size_type& pos )
 {
 	if ( pos >= v.size() )
 		throw json_exception( "unexpected eof" );
 
 	dbExpects( !stdx::isspace( v[ pos ] ) );
 
-	json result;
+	basic_json result;
 	size_type i = pos;
 
 	const auto c = v[ i ];
@@ -999,7 +1005,8 @@ inline json json::parse_imp( zview_type v, size_type& pos )
 	return result;
 }
 
-inline json::array_type json::parse_array( zview_type v, size_type& pos )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+basic_json<String, Vector, Map>::array_type basic_json<String, Vector, Map>::parse_array( zview_type v, size_type& pos )
 {
 	dbExpects( v[ pos ] == '[' );
 	size_type i = pos;
@@ -1021,7 +1028,8 @@ inline json::array_type json::parse_array( zview_type v, size_type& pos )
 	return array;
 }
 
-inline json::object_type json::parse_object( zview_type v, size_type& pos )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+basic_json<String, Vector, Map>::object_type basic_json<String, Vector, Map>::parse_object( zview_type v, size_type& pos )
 {
 	dbExpects( v[ pos ] == '{' );
 	size_type i = pos;
@@ -1035,7 +1043,7 @@ inline json::object_type json::parse_object( zview_type v, size_type& pos )
 			throw json_exception( "expected \":\"" );
 
 		while ( stdx::isspace( v[ i ] ) ) ++i;
-		json value = parse_imp( v, i );
+		basic_json value = parse_imp( v, i );
 
 		const auto insert_result = result.insert( { std::move( key ), std::move( value ) } );
 		if ( !insert_result.second )
@@ -1053,7 +1061,8 @@ inline json::object_type json::parse_object( zview_type v, size_type& pos )
 	return result;
 }
 
-inline json::string_type json::parse_string( zview_type v, size_type& pos )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+basic_json<String, Vector, Map>::string_type basic_json<String, Vector, Map>::parse_string( zview_type v, size_type& pos )
 {
 	dbExpects( pos < v.size() );
 	dbExpects( v[ pos ] == '"' );
@@ -1095,7 +1104,8 @@ inline json::string_type json::parse_string( zview_type v, size_type& pos )
 	return result;
 }
 
-inline json::number_type json::parse_number( zview_type v, size_type& pos )
+template <typename String, template<class> typename Vector, template<class, class> typename Map>
+basic_json<String, Vector, Map>::number_type basic_json<String, Vector, Map>::parse_number( zview_type v, size_type& pos )
 {
 	dbExpects( pos < v.size() );
 	dbExpects( stdx::isdigit( v[ pos ] ) );
@@ -1108,6 +1118,16 @@ inline json::number_type json::parse_number( zview_type v, size_type& pos )
 	dbAssert( last > ( v.data() + pos ) );
 	pos = static_cast<size_type>( last - v.data() );
 	return result;
+}
+
+using json = basic_json<std::string, std::vector, stdx::simple_map>;
+
+namespace literals
+{
+	json operator "" _json( const char* str )
+	{
+		return json::parse( str );
+	}
 }
 
 } // namespace stdx

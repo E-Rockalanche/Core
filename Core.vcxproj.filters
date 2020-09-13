@@ -172,6 +172,9 @@
     <ClInclude Include="inc\stdx\json.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
+    <ClInclude Include="inc\stdx\any.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Profiler.cpp">
