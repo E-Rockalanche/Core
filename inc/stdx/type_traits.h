@@ -129,6 +129,15 @@ struct function_traits<ReturnType( ClassType::* )( Arguments... ) const>
 	static constexpr std::size_t arity = sizeof...( Arguments );
 };
 
+namespace detail
+{
+	template <typename T, typename... Args>
+	using function_t = decltype( std::declval<T>()( std::declval<Args>()... ) );
+}
+
+template <typename T, typename Ret, typename... Args>
+constexpr bool has_signature_v = std::is_same_v<detected_t<detail::function_t, T, Args...>, Ret>;
+
 
 // container concepts
 

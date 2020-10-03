@@ -175,6 +175,12 @@
     <ClInclude Include="inc\stdx\any.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
+    <ClInclude Include="inc\Name.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\ptr_string.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Profiler.cpp">
@@ -185,6 +191,9 @@
     </ClCompile>
     <ClCompile Include="src\Meta\MetaType.cpp">
       <Filter>src\Meta</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Name.cpp">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

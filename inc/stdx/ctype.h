@@ -6,13 +6,13 @@ namespace stdx {
 template <typename CharT>
 constexpr bool islower( CharT c ) noexcept
 {
-	return c >= 'a' && c <= 'z';
+	return 'a' <= c && c <= 'z';
 }
 
 template <typename CharT>
 constexpr bool isupper( CharT c ) noexcept
 {
-	return c >= 'A' && c <= 'Z';
+	return 'A' <= c && c <= 'Z';
 }
 
 template <typename CharT>
@@ -24,7 +24,7 @@ constexpr bool isalpha( CharT c ) noexcept
 template <typename CharT>
 constexpr bool isdigit( CharT c ) noexcept
 {
-	return c >= '0' && c <= '9';
+	return '0' <= c && c <= '9';
 }
 	
 template <typename CharT>
@@ -85,8 +85,20 @@ template <typename CharT>
 constexpr bool isxdigit( CharT c ) noexcept
 {
 	return stdx::isdigit( c ) ||
-		( c >= 'a' && c <= 'f' ) ||
-		( c >= 'A' && c <= 'F' );
+		( 'a' <= c && c <= 'f' ) ||
+		( 'A' <= c && c <= 'F' );
+}
+
+template <typename CharT>
+constexpr bool isodigit( CharT c ) noexcept
+{
+	return ( '0' <= c && c <= '7' );
+}
+
+template <typename CharT>
+constexpr bool isbdigit( CharT c ) noexcept
+{
+	return ( c == '0' || c == '1' );
 }
 
 }

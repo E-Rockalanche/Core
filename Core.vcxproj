@@ -173,6 +173,7 @@
     <ClInclude Include="inc\Meta\MetaSet.h" />
     <ClInclude Include="inc\Meta\MetaString.h" />
     <ClInclude Include="inc\Meta\MetaType.h" />
+    <ClInclude Include="inc\Name.h" />
     <ClInclude Include="inc\Profiler.h" />
     <ClInclude Include="inc\stdx\algorithm.h" />
     <ClInclude Include="inc\stdx\any.h" />
@@ -197,6 +198,7 @@
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
     <ClInclude Include="inc\stdx\priority_queue.h" />
+    <ClInclude Include="inc\stdx\ptr_string.h" />
     <ClInclude Include="inc\stdx\random.h" />
     <ClInclude Include="inc\stdx\reflection.h" />
     <ClInclude Include="inc\stdx\simple_map.h" />
@@ -214,6 +216,7 @@
   <ItemGroup>
     <ClCompile Include="src\Meta\MetaClass.cpp" />
     <ClCompile Include="src\Meta\MetaType.cpp" />
+    <ClCompile Include="src\Name.cpp" />
     <ClCompile Include="src\Profiler.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

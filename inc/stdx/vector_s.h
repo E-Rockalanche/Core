@@ -1,6 +1,9 @@
 #ifndef STDX_VECTOR_S_HPP
 #define STDX_VECTOR_S_HPP
 
+#include <stdx/bit.h>
+
+#include <algorithm>
 #include <iterator>
 #include <stdexcept>
 #include <type_traits>
@@ -8,9 +11,201 @@
 namespace stdx
 {
 
-template <typename T, size_t SIZE>
-class alignas( T ) alignas( T* ) vector_s
+namespace detail
 {
+	template <typename OutputIt, typename... Args>
+	static constexpr void construct( OutputIt first, const OutputIt last, const Args&... args )
+	{
+		using T = typename std::iterator_traits<OutputIt>::value_type;
+		for ( ; first != last; ++first )
+			new( first ) T( args... );
+	}
+
+	template <typename InputIt, typename OutputIt>
+	static constexpr void copy_construct( InputIt first, const InputIt last, OutputIt d_first )
+	{
+		using T = typename std::iterator_traits<OutputIt>::value_type;
+		for ( ; first != last; ++first, ++d_first )
+			new( d_first ) T( *first );
+	}
+
+	template <typename InputIt, typename OutputIt>
+	static constexpr void move_construct( InputIt first, const InputIt last, OutputIt d_first )
+	{
+		using T = typename std::iterator_traits<OutputIt>::value_type;
+		for ( ; first != last; ++first, ++d_first )
+			new( d_first ) T( std::move( *first ) );
+	}
+
+	template <typename InputIt>
+	static constexpr void destroy( InputIt first, const InputIt last )
+	{
+		using T = typename std::iterator_traits<InputIt>::value_type;
+		for ( ; first != last; ++first )
+			first->~T();
+	}
+
+	template <typename T, std::size_t Size>
+	struct small_vector_storage
+	{
+		using size_type = std::size_t;
+
+		static constexpr size_type capacity = Size;
+
+		std::aligned_storage_t<sizeof( T ) * Size, alignof( T )> buffer;
+		size_type size = 0;
+
+		constexpr small_vector_storage() noexcept = default;
+		constexpr small_vector_storage( size_type n ) noexcept { dbExpects( n <= Size ); }
+
+		constexpr void init_reserve( size_type n )
+		{
+			dbExpects( n <= Size );
+			dbExpects( this->size = 0 );
+		}
+
+		constexpr T* data() noexcept { return reinterpret_cast<T*>( &this->buffer ); }
+		constexpr const T* data() const noexcept { return reinterpret_cast<T*>( &this->buffer ); }
+		constexpr size_type max_size() const noexcept { return Size; }
+		constexpr void reserve( size_type n ) noexcept { dbExpects( n <= Size ); }
+		constexpr void shrink_to_fit() noexcept {}
+		constexpr bool empty() const noexcept { return this->size == 0; }
+
+		constexpr void clear()
+		{
+			detail::destroy( data(), data() + this->size );
+			this->size = 0;
+		}
+
+		constexpr void move( small_vector_storage& other )
+		{
+			dbExpects( this->size == 0 );
+			const auto other_last = other.data() + other.size;
+			std::move( other.data(), other_last, data() );
+			detail::destroy( other.data(), other_last );
+			this->size = std::exchange( other.size, 0 );
+		}
+	};
+
+	template <typename T, std::size_t Size>
+	struct sbo_vector_storage : public small_vector_storage<T, Size>
+	{
+		using parent = small_vector_storage<T, Size>;
+		using size_type = typename parent::size_type;
+
+		char* first = reinterpret_cast<char*>( &buffer );
+		size_type capacity = Size;
+
+		constexpr sbo_vector_storage() noexcept = default;
+		constexpr sbo_vector_storage( size_type n )
+		{
+			if ( n > Size )
+			{
+				this->first = new char[ sizeof( T ) * n ];
+				this->capacity = n;
+			}
+		}
+
+		~sbo_vector_storage()
+		{
+			if ( !is_local() )
+				delete[] this->first;
+		}
+
+		constexpr void init_reserve( size_type n )
+		{
+			dbExpects( n <= Size );
+			dbExpects( this->size = 0 );
+			dbExpects( this->first == local_data() );
+			this->first = new char[ sizeof( T ) * n ];
+			this->capacity = n;
+		}
+
+		constexpr T* data() noexcept { return reinterpret_cast<T*>( this->first ); }
+		constexpr const T* data() const noexcept { return reinterpret_cast<const T*>( this->first ); }
+		constexpr size_type max_size() const noexcept { return std::numeric_limits<size_type>::max(); }
+
+		constexpr void reserve( size_type n )
+		{
+			if ( n > capacity )
+				alloc_buffer_and_move( n );
+		}
+
+		constexpr void shrink_to_fit()
+		{
+			if ( is_local() )
+				return;
+
+			if ( this->size <= Size )
+			{
+				detail::move_construct( data(), data() + this->size, local_data() );
+				detail::destroy( data(), data() + this->size );
+				delete[] this->first;
+				this->first = reinterpret_cast<char*>( local_data() );
+				this->capacity = Size;
+			}
+			else
+			{
+				alloc_buffer_and_move( this->size );
+			}
+		}
+
+		constexpr void clear()
+		{
+			parent::clear();
+			this->capacity = Size;
+			if ( !is_local() )
+			{
+				delete[] this->first;
+				this->first = reinterpret_cast<char*>( &this->buffer );
+			}
+		}
+
+		constexpr void take( sbo_vector_storage& other )
+		{
+			dbExpects( this->size = 0 );
+			dbExpects( this->first == local_data() );
+			if ( other.is_local() )
+			{
+				parent::take( other );
+			}
+			else
+			{
+				this->first = std::exchange( other.first, other.local_buffer() );
+				this->size = std::exchange( other.size, 0 );
+				this->capacity = std::exchange( other.capacity, Size );
+			}
+		}
+
+	private:
+		constexpr void alloc_buffer_and_move( size_type n )
+		{
+			dbExpects( n >= this->size );
+			char* newData = new char[ sizeof( T ) * n ];
+			detail::move_construct( data(), data() + this->size, reinterpret_cast<T*>( newData ) );
+			detail::destroy( data(), data() + this->size );
+
+			if ( !is_local() )
+				delete[] this->first;
+
+			this->first = newData;
+			this->capacity = n;
+		}
+
+	private:
+		constexpr T* local_data() noexcept { return reinterpret_cast<T*>( &this->buffer ); }
+		constexpr const T* local_data() const noexcept { return reinterpret_cast<T*>( &this->buffer ); }
+
+		constexpr bool is_local() const noexcept { return this->first == reinterpret_cast<const T*>( &this->buffer ); }
+	};
+}
+
+template <typename T, std::size_t Size, bool Resizable = false>
+class vector_s
+{
+private:
+	using storage_type = std::conditional_t<Resizable, detail::sbo_vector_storage<T, Size>, detail::small_vector_storage<T, Size>>;
+
 public:
 	using value_type = T;
 	using reference = T&;
@@ -18,8 +213,8 @@ public:
 	using pointer = T*;
 	using const_pointer = const T*;
 
-	using size_type = size_t;
-	using difference_type = ptrdiff_t;
+	using size_type = std::size_t;
+	using difference_type = std::ptrdiff_t;
 
 	using iterator = T*;
 	using const_iterator = const T*;
@@ -27,380 +222,466 @@ public:
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 public:
-	vector_s() noexcept : m_end( m_data ) {}
-	vector_s( size_type count ) { resize( count ); }
-	vector_s( size_type count, const T& value ) { resize( count, value ); }
 
-	template <typename InputIt>
-	vector_s( typename std::enable_if< !std::is_integral_v< InputIt >, InputIt >::type first, InputIt last )
-		: vector_s()
+	// construction/assignment
+
+	constexpr vector_s() noexcept = default;
+
+	constexpr vector_s( size_type count, const T& value ) : m_storage{ count }
 	{
-		insert( begin(), first, last );
+		detail::construct( m_storage.data(), m_storage.data() + count, value );
+		m_storage.m_size = count;
 	}
 
-	vector_s( const vector_s& other ) : vector_s() { insert( begin(), other.cbegin(), other.cend() ); }
-	vector_s( std::initializer_list<T> init ) : vector_s() { insert(begin(), init); }
-
-	~vector_s() { clear(); } // destroy objects in raw char buffer
-
-	vector_s& operator=( const vector_s& other )
+	constexpr vector_s( size_type count ) : m_storage{ count }
 	{
-		clear();
-		insert( begin(), other.cbegin(), other.cend() );
+		detail::construct( m_storage.data(), m_storage.data() + count );
+		m_storage.m_size = count;
+	}
+
+	template <typename InputIt,
+		std::enable_if_t<!std::is_integral_v<InputIt>, int> = 0>
+	constexpr vector_s( InputIt first, InputIt last )
+	{
+		const auto count = stdx::narrow_cast<size_type>( std::distance( first, last ) );
+		m_storage.init_reserve( count );
+		detail::copy_construct( first, last, m_storage.data() );
+		m_storage.size = count;
+	}
+
+	constexpr vector_s( const vector_s& other ) : vector_s{ other.begin(), other.end() } {}
+
+	constexpr vector_s( vector_s&& other ) noexcept
+	{
+		m_storage.take( other.m_storage );
+	}
+
+	constexpr vector_s( std::initializer_list<T> init ) : vector_s{ init.begin(), init.end() } {}
+
+	~vector_s()
+	{
+		detail::destroy( data(), data() + m_storage.size );
+	}
+
+	constexpr vector_s& operator=( const vector_s& other )
+	{
+		assign( other.begin(), other.end() );
 		return *this;
 	}
 
-	vector_s& operator=( std::initializer_list<T> iList )
+	constexpr vector_s& operator=( vector_s&& other ) noexcept
 	{
-		clear();
-		insert( begin(), iList.begin(), iList.end() );
+		if ( !empty() )
+			clear();
+
+		m_storage.take( other.m_storage );
 		return *this;
 	}
 
-	void assign( size_type count, const T& value )
+	constexpr vector_s& operator=( std::initializer_list<T> init )
 	{
-		clear();
-		resize( count, value );
-	}
-
-	template <class InputIt>
-	std::enable_if_t< !std::is_integral_v< InputIt >, void >
-	assign( InputIt first, InputIt last )
-	{
-		clear();
-		insert( begin(), first, last );
+		assign( init.begin(), init.end() );
 		return *this;
 	}
 
-	void assign( std::initializer_list<T> iList )
+	constexpr void assign( size_type count, const T& value )
 	{
-		assign( iList.begin(), iList.end() );
+		m_storage.clear();
+		m_storage.reserve( count );
+		detail::construct( m_storage.data(), m_storage.data() + count, value );
+		m_storage.size = count;
 	}
 
-	T& at( size_type index )
+	template <typename InputIt,
+		std::enable_if_t<!std::is_integral_v<InputIt>, int> = 0>
+	constexpr void assign( InputIt first, InputIt last )
 	{
-		if ( index >= size() )
-			throw std::out_of_range( out_of_range_message );
-		return data()[ index ];
+		m_storage.clear();
+		const auto count = stdx::narrow_cast<size_type>( std::distance( first, last ) );
+		m_storage.reserve( count );
+		detail::copy_construct( first, last, m_storage.data() );
+		m_storage.size = count;
 	}
 
-	const T& at( size_type index ) const
+	constexpr void assign( std::initializer_list<T> init )
 	{
-		if ( index >= size() )
-			throw std::out_of_range( out_of_range_message );
-		return data()[ index ];
+		assign( init.begin(), init.end() );
 	}
 
-	T& operator[]( size_type index ) noexcept { return m_data[ index ]; }
-	const T& operator[]( size_type index ) const noexcept { return m_data[ index ]; }
+	// element access
 
-	T& front() noexcept { return m_data[ 0 ]; }
-	const T& front() const noexcept { return m_data[ 0 ]; }
-
-	T& back() noexcept { return *( m_end - 1 ); }
-	const T& back() const noexcept { return *( m_end - 1 ); }
-
-	T* data() noexcept { return m_data; }
-	const T* data() const noexcept { return m_data; }
-
-	iterator begin() noexcept { return m_data; }
-	iterator end() noexcept { return m_end; }
-
-	const_iterator cbegin() const noexcept { return m_data; }
-	const_iterator cend() const  noexcept { return m_end; }
-
-	reverse_iterator rbegin() noexcept { return reverse_iterator( end() ); }
-	reverse_iterator rend() noexcept { return reverse_iterator( begin() ); }
-
-	const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator( cend() ); }
-	const_reverse_iterator crend() const noexcept { return const_reverse_iterator( cbegin() ); }
-
-	bool empty() const noexcept { return m_data == m_end; }
-	size_type size() const noexcept { return static_cast<size_type>( m_end - m_data ); }
-	size_type max_size() const noexcept { return SIZE; }
-	size_type capacity() const noexcept { return SIZE; }
-
-	void clear()
+	constexpr T& at( size_type i )
 	{
-		destroy( begin(), end() );
-		m_end = m_data;
+		if ( i >= m_storage.size )
+			throw std::out_of_bounds();
+
+		return m_storage.data()[ i ];
 	}
 
-	iterator insert( const_iterator pos_, const T& value )
+	constexpr const T& at( size_type i ) const
 	{
-		iterator pos = const_cast<iterator>( pos_ );
+		if ( i >= m_storage.size )
+			throw std::out_of_bounds();
+
+		return m_storage.data()[ i ];
+	}
+
+	constexpr T& operator[]( size_type i ) noexcept
+	{
+		dbExpects( i < m_storage.size );
+		return m_storage.data()[ i ];
+	}
+
+	constexpr const T& operator[]( size_type i ) const noexcept
+	{
+		dbExpects( i < m_storage.size );
+		return m_storage.data()[ i ];
+	}
+
+	constexpr T& front() noexcept
+	{
+		dbExpects( !m_storage.empty() );
+		return m_storage.data()[ 0 ];
+	}
+
+	constexpr const T& front() const noexcept
+	{
+		dbExpects( !m_storage.empty() );
+		return m_storage.data()[ 0 ];
+	}
+
+	constexpr T& back() noexcept
+	{
+		dbExpects( !m_storage.empty() );
+		return m_storage.data()[ m_storage.size - 1 ];
+	}
+
+	constexpr const T& back() const noexcept
+	{
+		dbExpects( !m_storage.empty() );
+		return m_storage.data()[ m_storage.size - 1 ];
+	}
+
+	constexpr T* data() noexcept
+	{
+		return m_storage.data();
+	}
+
+	constexpr const T* data() const noexcept
+	{
+		return m_storage.data();
+	}
+
+	// iterators
+
+	constexpr iterator begin() noexcept { return m_storage.data(); }
+	constexpr iterator end() noexcept { return m_storage.data() + m_storage.size; }
+
+	constexpr const_iterator begin() const noexcept { return m_storage.data(); }
+	constexpr const_iterator end() const noexcept { return m_storage.data() + m_storage.size; }
+
+	constexpr const_iterator cbegin() const noexcept { return m_storage.data(); }
+	constexpr const_iterator cend() const noexcept { return m_storage.data() + m_storage.size; }
+
+	constexpr reverse_iterator rbegin() noexcept { return end(); }
+	constexpr reverse_iterator rend() noexcept { return begin(); }
+
+	constexpr const_reverse_iterator rbegin() const noexcept { return end(); }
+	constexpr const_reverse_iterator rend() const noexcept { return begin(); }
+
+	constexpr const_reverse_iterator crbegin() const noexcept { return end(); }
+	constexpr const_reverse_iterator crend() const noexcept { return begin(); }
+
+	// capacity
+
+	constexpr bool empty() const noexcept
+	{
+		return m_storage.empty();
+	}
+
+	constexpr size_type size() const noexcept
+	{
+		return m_storage.size;
+	}
+
+	constexpr difference_type ssize() const noexcept
+	{
+		return static_cast<difference_type>( m_storage.size );
+	}
+
+	constexpr size_type max_size() const noexcept
+	{
+		return m_storage.max_size();
+	}
+
+	constexpr void reserve( size_type n )
+	{
+		m_storage.reserve( n );
+	}
+
+	constexpr size_type capacity() const noexcept
+	{
+		return m_storage.capacity;
+	}
+
+	constexpr void shrink_to_fit()
+	{
+		m_storage.shrink_to_fit();
+	}
+
+	// modifiers
+
+	constexpr void clear()
+	{
+		m_storage.clear();
+	}
+
+	constexpr iterator insert( const_iterator pos, const T& value )
+	{
 		if ( pos == end() )
-		{
 			push_back( value );
-		}
 		else
 		{
-			shift_back( pos, 1 );
-			*pos = value;
+			auto[ assign_start, mid, construct_end ] = shift_right( pos - begin(), 1 );
+			*assign_start = value;
 		}
-		return pos + 1;
 	}
 
-	iterator insert( const_iterator pos_, T&& value )
+	constexpr iterator insert( const_iterator pos, T&& value )
 	{
-		iterator pos = const_cast<iterator>( pos_ );
 		if ( pos == end() )
-		{
 			push_back( std::move( value ) );
-		}
 		else
 		{
-			shift_back( pos, 1 );
-			*pos = value;
+			auto[ assign_start, mid, construct_end ] = shift_right( pos - begin(), 1 );
+			*assign_start = std::move( value );
 		}
-		return pos + 1;
 	}
 
-	iterator insert( const_iterator pos_, size_type count, const T& value )
+	constexpr iterator insert( const_iterator pos, size_type count, const T& value )
 	{
-		iterator pos = const_cast<iterator>(pos_);
-
 		if ( count == 0 )
-			return pos;
+			return const_cast<iterator>( pos );
 
-		if ( pos == end() )
-		{
-			resize( size() + count, value );
-		}
-		else
-		{
-			auto prev_end = end();
-			shift_back( pos, count );
-			auto it = pos;
-			// copy into existing positions
-			for( ; it != prev_end; ++it )
-				*it = value;
-			// copy construct into new positions
-			for( ; it != pos + count; ++it )
-				new ( it ) T( value );
-		}
-		return pos + 1;
+		auto[ assign_start, mid, construct_end ] = shift_right( pos - begin(), count );
+
+		for ( auto it = assign_start; it != mid; ++it )
+			*it = value;
+
+		for ( auto it = mid; it != construct_end; ++it )
+			new( it ) T( value );
 	}
 
-	template <typename InputIt>
-	typename std::enable_if< !std::is_integral_v< InputIt >, iterator >::type
-	insert( const_iterator pos_, InputIt first, InputIt last )
+	template <typename InputIt,
+		std::enable_if_t<!std::is_integral_v<InputIt>, int> = 0>
+	constexpr iterator insert( const_iterator pos, InputIt first, const InputIt last )
 	{
-		iterator pos = const_cast<iterator>( pos_ );
-
+		dbExpects( first <= last );
 		if ( first == last )
-			return pos;
+			return const_cast<iterator>( pos );
 
-		if ( pos == end() )
-		{
-			auto src = first;
-			auto dest = pos;
-			for( ; src != last; ++src, ++dest )
-				new ( dest ) T( *src );
-		}
-		else
-		{
-			auto prev_end = end();
-			size_type count = last - first;
-			shift_back( pos, count );
-			auto dest = pos;
-			auto src = first;
-			// copy into existing positions
-			for( ; dest != prev_end; ++dest, ++src )
-				*dest = *src;
-			// copy construct into new positions
-			for( ; dest != pos + count; ++dest, ++src )
-				new ( dest ) T( *src );
-		}
+		auto[ assign_start, mid, construct_end ] = shift_right( pos - begin(), std::distance( first, last ) );
+		for ( auto it = assign_start; it != mid; ++it, ++first )
+			*it = *first;
 
-		return pos + 1;
+		for ( auto it = mid; it != construct_end; ++it, ++first )
+			new( it ) T( *first );
 	}
 
-	iterator insert( const_iterator pos_, std::initializer_list<T> iList )
+	constexpr iterator insert( const_iterator pos, std::initializer_list<T> init )
 	{
-		iterator pos = const_cast<iterator>( pos_ );
-
-		if ( iList.begin() == iList.end() )
-			return pos;
-
-		if ( pos == end() )
-		{
-			auto src = iList.begin();
-			auto dest = pos;
-			for( ; src != iList.end(); ++src, ++dest )
-				new ( dest ) T( *src );
-		}
-		else
-		{
-			auto prev_end = end();
-			size_type count = iList.end() - iList.begin();
-			shift_back( pos, count );
-			auto dest = pos;
-			auto src = iList.begin();
-			// copy into existing positions
-			for( ; dest != prev_end; ++dest, ++src )
-				*dest = *src;
-			// copy construct into new positions
-			for( ; dest != pos + count; ++dest, ++src )
-				new ( dest ) T( *src );
-		}
-
-		return pos + 1;
+		return insert( init.begin(), init.end() );
 	}
 
-	template <class... Args>
-	iterator emplace( const_iterator pos_, Args&&... args )
+	template <typename... Args>
+	constexpr iterator emplace( const_iterator pos, Args&&... args )
 	{
-		iterator pos = const_cast<iterator>( pos_ );
 		if ( pos == end() )
-		{
 			emplace_back( std::forward<Args>( args )... );
-		}
 		else
 		{
-			shift_back( pos, 1 );
-			( *pos ).~T();
-			new ( pos ) T( std::forward<Args>( args )... );
+			auto[ assign_start, mid, construct_end ] = shift_right( pos - begin(), 1 );
+			*assign_start = T( std::forward<Args>( args )... );
 		}
-		return pos;
 	}
 
-	iterator erase( const_iterator pos_ )
+	constexpr iterator erase( const_iterator pos )
 	{
-		iterator pos = const_cast<iterator>(pos_);
-		if ( pos >= end() )
-			return end();
-		else if ( pos == end() - 1 )
-			pop_back();
-		else
-			shift_forward( pos, 1 );
-		
-		return pos;
+		dbExpects( begin() <= pos );
+		dbExpects( pos < end() );
+
+		T* p = m_storage.data() + ( pos - cbegin() );
+		return shift_left( p, 1 );
 	}
 
-	iterator erase( const_iterator first_, const_iterator last_ )
+	constexpr iterator erase( const_iterator first, const_iterator last )
 	{
-		iterator first = const_cast<iterator>(first_);
-		iterator last = const_cast<iterator>(last_);
-		if ( last == end() )
-			resize( first - begin() );
-		else
-			shift_forward( last, last - first );
-		
-		return first;
+		dbExpects( begin() <= first );
+		dbExpects( first <= last );
+		dbExpects( last < end() );
+
+		T* p = m_storage.data() + ( first - cbegin() );
+		return shift_left( p, static_cast<size_type>( last - first ) );
 	}
 
-	void push_back( const T& value )
+	constexpr void push_back( const T& value )
 	{
-		checkSize( 1 );
-		new ( m_end++ ) T( value );
+		reserve_extra( 1 );
+		new( m_storage.data() + m_storage.size ) T( value );
+		m_storage.size++;
 	}
 
-	void push_back( T&& value )
+	constexpr void push_back( T&& value )
 	{
-		checkSize( 1 );
-		new ( m_end++ ) T( std::move( value ) );
+		reserve_extra( 1 );
+		new( m_storage.data() + m_storage.size ) T( std::move( value ) );
+		m_storage.size++;
 	}
 
-	template <class... Args>
-	T& emplace_back( Args&&... args )
+	template <typename... Args>
+	constexpr reference emplace_back( Args&&... args )
 	{
-		checkSize( 1 );
-		new ( m_end ) T( std::forward<Args>( args )... );
-		return *( m_end++ );
+		reserve_extra( 1 );
+		new( m_storage.data() + m_storage.size ) T( std::forward<Args>( args )... );
+		m_storage.size++;
 	}
 
-	void pop_back() { ( --m_end ).~T(); }
-
-	void resize( size_type count ) // construct additional elements in place
+	constexpr void pop_back()
 	{
-		if ( count > capacity() )
-			throw std::length_error( exceed_capacity_message );
-		
-		else if ( count > size() )
+		dbExpects( !m_storage.empty() );
+		back().~T();
+		m_storage.size--;
+	}
+
+	constexpr void resize( size_type count )
+	{
+		if ( count > m_storage.size )
 		{
-			for(auto it = end(); it != begin() + count; ++it)
-				new ( it ) T();
+			m_storage.reserve( count );
+			const auto first = m_storage.data() + m_storage.size;
+			detail::construct( first, first + count );
+			m_storage.size += count;
 		}
-		else if ( count < size() )
+		else if ( count < m_storage.size )
 		{
-			destroy( begin() + count, end() );
+			const auto last = m_storage.data() + m_storage.size;
+			detail::destroy( last - count, last );
+			m_storage.size -= count;
 		}
-		m_end = m_data + count;
 	}
 
-	void resize( size_type count, const T& value )
+	constexpr void resize( size_type count, const T& value )
 	{
-		if ( count > capacity() )
-			throw std::length_error( exceed_capacity_message );
-		
-		if ( count > size() )
+		if ( count > m_storage.size )
 		{
-			for(auto it = end(); it != begin() + count; ++it)
-				new ( it ) T( value );
+			m_storage.reserve( count );
+			const auto first = m_storage.data() + m_storage.size;
+			detail::construct( first, first + count, value );
+			m_storage.size += count;
 		}
-		else if ( count < size() )
+		else if ( count < m_storage.size )
 		{
-			destroy( begin() + count, end() );
+			const auto last = m_storage.data() + m_storage.size;
+			detail::destroy( last - count, last );
+			m_storage.size -= count;
 		}
-		m_end = m_data + count;
+	}
+
+	constexpr void swap( vector_s& other ) noexcept
+	{
+		std::swap( *this, other );
+	}
+
+	friend constexpr bool operator==( const vector_s& lhs, const vector_s& rhs )
+	{
+		return lhs.size() == rhs.size() && std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() ) == 0;
+	}
+
+	friend constexpr bool operator!=( const vector_s& lhs, const vector_s& rhs )
+	{
+		return !( lhs == rhs );
+	}
+
+	friend constexpr bool operator<( const vector_s& lhs, const vector_s& rhs )
+	{
+		return std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() ) < 0;
+	}
+
+	friend constexpr bool operator>( const vector_s& lhs, const vector_s& rhs )
+	{
+		return std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() ) > 0;
+	}
+
+	friend constexpr bool operator<=( const vector_s& lhs, const vector_s& rhs )
+	{
+		return std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() ) <= 0;
+	}
+
+	friend constexpr bool operator>=( const vector_s& lhs, const vector_s& rhs )
+	{
+		return std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() ) >= 0;
 	}
 
 private:
-	void destroy( const_iterator first, const_iterator last )
+	constexpr void reserve_extra( size_type count )
 	{
-		for( auto it = first; it != last; ++it )
-			( *it ).~T();
+		if ( m_storage.size + count > m_storage.capacity )
+		{
+			reserve( std::max( m_storage.size + count, m_storage.capacity * 2 ) );
+		}
 	}
 
-	void shift_back( const_iterator first_, size_type distance )
+	// leaves [pos, end) moved from, and allocates a new region [end, (pos+distance)) to be constructed later
+	// returns two ranges, 1st to be assigned, second to be constructed
+	constexpr std::tuple<T*, T*, T*> shift_right( const size_type pos, const size_type distance )
 	{
-		iterator first = const_cast<iterator>(first_);
-		if ( first + distance >= begin() + capacity() )
-			throw std::length_error( exceed_capacity_message );
+		dbExpects( data() <= pos );
+		dbExpects( pos <= data() + size() );
 
-		auto last = end() - 1;
-		auto new_first = first + distance;
-		auto dest = last + distance;
-		auto src = last;
-		// move construct into new positions
-		for( ; dest != last; --dest, --src)
-			new ( dest ) T( std::move( *src ) );
-		// move into existing posiitons
-		for( ; dest != new_first; --dest, --src)
-			*dest = std::move( *src );
-		m_end += distance;
+		reserve_extra( distance );
+
+		T* p = m_storage.data() + pos;
+		T* prev_end = end();
+
+		if ( p < end() )
+		{
+			T* p = m_storage.data() + pos;
+			T* move_construct_start = std::min( p, prev_end - distance );
+			detail::move_construct( move_construct_start, prev_end, move_construct_start + distance );
+			std::move( p, move_construct_start, p + distance );
+			m_storage.size += distance;
+			return { p, std::min( p + distance, prev_end ), p + distance };
+		}
+		else
+		{
+			m_storage.size += distance;
+			return { prev_end, prev_end, prev_end + distance };
+		}
 	}
 
-	void shift_forward( const_iterator first_, size_type distance )
+	// removes region [(pos-distance), pos)
+	// return pointer to first erased element
+	constexpr T* shift_left( T* pos, size_type distance )
 	{
-		iterator first = const_cast<iterator>(first_);
-		auto src = first;
-		auto dest = first - distance;
-		for( ; src != end(); ++src, ++dest )
-			*dest = std::move( *src );
-		destroy( end() - distance, end() );
-		m_end -= distance;
-	}
+		dbExpects( data() <= pos );
+		dbExpects( pos <= data() + size() );
+		dbExpects( distance < size() );
 
-	void checkSize( size_type count ) const
-	{
-		if ( size() + count > SIZE )
-			throw std::length_error( exceed_capacity_message );
+		std::move( pos, end(), pos - distance );
+		detail::destroy( end() - distance, end() );
+		m_storage.size -= distance;
+		return pos;
 	}
 
 private:
-	T* m_end = nullptr;
-
-	union
-	{
-		T m_data[ SIZE ];
-		char m_bytes[ sizeof( T ) * SIZE ];
-	};
-
-	static constexpr const char* out_of_range_message = "vector_s index out of range";
-	static constexpr const char* exceed_capacity_message = "vector_s size exceeds capacity";
+	storage_type m_storage;
 };
+
+template <typename T, std::size_t Size>
+using small_vector = vector_s<T, Size, false>;
+
+template <typename T, std::size_t Size>
+using sbo_vector = vector_s<T, Size, true>;
 
 }
 

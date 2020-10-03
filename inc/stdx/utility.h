@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdx/span.h>
+#include <string_view>
 
 #include <cstdint>
 #include <utility>
@@ -33,7 +33,7 @@ namespace detail
 }
 
 template <typename T>
-constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
+constexpr T hash_fnv1a( std::string_view data ) noexcept
 {
 	static_assert( std::is_unsigned_v<T> );
 
@@ -48,14 +48,14 @@ constexpr T hash_fnv1a( stdx::span<const char> data ) noexcept
 }
 
 template<>
-constexpr uint16_t hash_fnv1a<uint16_t>( stdx::span<const char> data ) noexcept
+constexpr uint16_t hash_fnv1a<uint16_t>( std::string_view data ) noexcept
 {
 	const uint32_t hash = hash_fnv1a<uint32_t>( data );
 	return static_cast<uint16_t>( ( hash >> 16 ) ^ ( hash & 0xffff ) );
 }
 
 template<>
-constexpr uint8_t hash_fnv1a<uint8_t>( stdx::span<const char> data ) noexcept
+constexpr uint8_t hash_fnv1a<uint8_t>( std::string_view data ) noexcept
 {
 	const uint16_t hash = hash_fnv1a<uint16_t>( data );
 	return static_cast<uint8_t>( ( hash >> 8 ) ^ ( hash & 0xff ) );
