@@ -1,0 +1,229 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{1C92BE46-2197-49F2-BC95-4A67701B7F39}</ProjectGuid>
+    <RootNamespace>Core</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>inc</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="inc\ByteIO.h" />
+    <ClInclude Include="inc\EventSink.h" />
+    <ClInclude Include="inc\Math\Colour.h" />
+    <ClInclude Include="inc\Math\FixedPoint.h" />
+    <ClInclude Include="inc\Math\Matrix3.h" />
+    <ClInclude Include="inc\Math\BasicMatrix.h" />
+    <ClInclude Include="inc\Math\Transform.h" />
+    <ClInclude Include="inc\Math\Vector2.h" />
+    <ClInclude Include="inc\Math\Vector3.h" />
+    <ClInclude Include="inc\Meta\Meta.h" />
+    <ClInclude Include="inc\Meta\MetaClass.h" />
+    <ClInclude Include="inc\Meta\MetaDeclare.h" />
+    <ClInclude Include="inc\Meta\MetaEnum.h" />
+    <ClInclude Include="inc\Meta\MetaExport.h" />
+    <ClInclude Include="inc\Meta\MetaIO.h" />
+    <ClInclude Include="inc\Meta\MetaJsonIO.h" />
+    <ClInclude Include="inc\Meta\MetaList.h" />
+    <ClInclude Include="inc\Meta\MetaMap.h" />
+    <ClInclude Include="inc\Meta\MetaPointer.h" />
+    <ClInclude Include="inc\Meta\MetaPrimitive.h" />
+    <ClInclude Include="inc\Meta\MetaSet.h" />
+    <ClInclude Include="inc\Meta\MetaString.h" />
+    <ClInclude Include="inc\Meta\MetaType.h" />
+    <ClInclude Include="inc\Name.h" />
+    <ClInclude Include="inc\Profiler.h" />
+    <ClInclude Include="inc\stdx\algorithm.h" />
+    <ClInclude Include="inc\stdx\any.h" />
+    <ClInclude Include="inc\stdx\array.h" />
+    <ClInclude Include="inc\stdx\array2.h" />
+    <ClInclude Include="inc\stdx\assert.h" />
+    <ClInclude Include="inc\stdx\basic_iterator.h" />
+    <ClInclude Include="inc\stdx\bit.h" />
+    <ClInclude Include="inc\stdx\bounded.h" />
+    <ClInclude Include="inc\stdx\container.h" />
+    <ClInclude Include="inc\stdx\ctype.h" />
+    <ClInclude Include="inc\stdx\dynamic_array.h" />
+    <ClInclude Include="inc\stdx\enum.h" />
+    <ClInclude Include="inc\stdx\fixed_string.h" />
+    <ClInclude Include="inc\stdx\flat_map.h" />
+    <ClInclude Include="inc\stdx\flat_set.h" />
+    <ClInclude Include="inc\stdx\format.h" />
+    <ClInclude Include="inc\stdx\int.h" />
+    <ClInclude Include="inc\stdx\iterator.h" />
+    <ClInclude Include="inc\stdx\json.h" />
+    <ClInclude Include="inc\stdx\math.h" />
+    <ClInclude Include="inc\stdx\memory.h" />
+    <ClInclude Include="inc\stdx\basic_int.h" />
+    <ClInclude Include="inc\stdx\priority_queue.h" />
+    <ClInclude Include="inc\stdx\ptr_string.h" />
+    <ClInclude Include="inc\stdx\random.h" />
+    <ClInclude Include="inc\stdx\reflection.h" />
+    <ClInclude Include="inc\stdx\simple_map.h" />
+    <ClInclude Include="inc\stdx\slot_map.h" />
+    <ClInclude Include="inc\stdx\sorted_map_range.h" />
+    <ClInclude Include="inc\stdx\span.h" />
+    <ClInclude Include="inc\stdx\string.h" />
+    <ClInclude Include="inc\stdx\thread_pool.h" />
+    <ClInclude Include="inc\stdx\type_traits.h" />
+    <ClInclude Include="inc\stdx\utility.h" />
+    <ClInclude Include="inc\stdx\vector_s.h" />
+    <ClInclude Include="inc\stdx\zstring_view.h" />
+    <ClInclude Include="inc\UniqueId.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\ByteIO.cpp" />
+    <ClCompile Include="src\Meta\MetaClass.cpp" />
+    <ClCompile Include="src\Meta\MetaExport.cpp" />
+    <ClCompile Include="src\Meta\MetaPrimitive.cpp" />
+    <ClCompile Include="src\Name.cpp" />
+    <ClCompile Include="src\Profiler.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
