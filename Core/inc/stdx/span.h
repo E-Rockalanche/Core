@@ -80,10 +80,14 @@ public: // construction and assignment
 
 	constexpr span() noexcept = default;
 
-	template <typename It>
+	constexpr span( T* first, size_type count ) noexcept : m_imp{ first, count } {}
+
+	template <typename It,
+		std::enable_if_t<!std::is_integral_v<It>, int> = 0>
 	constexpr span( It first, size_type count ) : m_imp{ stdx::to_address( first ), count } {}
 	
-	template <typename It>
+	template <typename It,
+		std::enable_if_t<!std::is_integral_v<It>, int> = 0>
 	constexpr span( It first, It last ) : m_imp{ stdx::to_address( first ), static_cast<size_type>( last - first ) } {}
 	
 	template <std::size_t N,
@@ -103,7 +107,7 @@ public: // construction and assignment
 	constexpr span( R&& r ) noexcept : m_imp{ r.data(), r.size() } {}
 	
 	template <typename U, std::size_t N,
-		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
+		std::enable_if_t<extent == dynamic_extent || extent == N, int> = 0>
 	constexpr span( const span<U, N>& s ) noexcept : m_imp{ s.data(), s.size() } {}
 	
 	constexpr span( const span& other ) noexcept = default;

@@ -30,7 +30,7 @@ namespace details
 
 } // namespace detail
 
-template < class D = void, class... Types>
+template <class D = void, class... Types>
 constexpr details::return_type<D, Types...> make_array( Types&&... t ) {
 	return { std::forward<Types>( t )... };
 }
@@ -42,7 +42,7 @@ namespace detail
 
 	template <class T, std::size_t N, std::size_t... I>
 	constexpr std::array<std::remove_cv_t<T>, N>
-	to_array_impl( T( &a )[ N ], std::index_sequence<I...> )
+		to_array_impl( T( &a )[ N ], std::index_sequence<I...> )
 	{
 		return { { a[ I ]... } };
 	}

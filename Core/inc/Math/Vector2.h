@@ -14,7 +14,7 @@ struct Vector2
 public:
 	using value_type = T;
 
-	constexpr Vector2() noexcept = default;
+	Vector2() noexcept = default;
 	constexpr Vector2( const Vector2& ) noexcept = default;
 	constexpr Vector2( T x_, T y_ ) noexcept : x{ x_ }, y{ y_ } {}
 
@@ -71,8 +71,8 @@ public:
 		return lhs.x * rhs.x + lhs.y * rhs.y;
 	}
 
-	T x = 0;
-	T y = 0;
+	T x;
+	T y;
 };
 
 template <typename T>

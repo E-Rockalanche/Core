@@ -2,7 +2,7 @@
 
 #include <stdx/algorithm.h>
 #include <stdx/bit.h>
-#include <stdx/basic_iterator.h>
+#include <stdx/iterator/basic_iterator.h>
 #include <stdx/int.h>
 #include <stdx/reflection.h>
 #include <stdx/type_traits.h>

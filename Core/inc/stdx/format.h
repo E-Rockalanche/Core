@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <istream>
 #include <stdexcept>
 #include <sstream>
 #include <string>
@@ -14,13 +15,41 @@
 namespace stdx
 {
 
-class format_error : public std::runtime_error
+class format_exception : public std::exception
 {
-	using std::runtime_error::runtime_error;
+	using std::exception::exception;
 };
 
 namespace detail
 {
+	// returns indices to '{' and position after '}'
+	template <typename CharT, typename Traits>
+	std::pair<std::size_t, std::size_t> find_format_specifier( std::basic_string_view<CharT, Traits> str )
+	{
+		constexpr auto npos = str.npos;
+
+		size_t searchStart = 0;
+		size_t specifierStart = 0;
+		for(;;)
+		{
+			specifierStart = str.find_first_of( '{', searchStart );
+			if ( specifierStart == npos )
+				return { npos, npos };
+
+			const auto next = specifierStart + 1;
+			if ( next < str.size() && str[ next ] != '{' )
+				break;
+
+			searchStart = next + 1;
+		}
+
+		const auto specifierEnd = str.find_first_of( '}', specifierStart + 1 );
+		if ( specifierEnd == npos )
+			return { npos, npos };
+		else
+			return { specifierStart, specifierEnd + 1 };
+	}
+
 	template <typename Iterator>
 	using it_diff_t = typename std::iterator_traits<Iterator>::difference_type;
 
@@ -57,7 +86,7 @@ namespace detail
 			if ( rightBracePos == fmt.npos )
 			{
 				dbBreak();
-				throw format_error( "missing end of format specifier" );
+				throw format_exception( "missing end of format specifier" );
 			}
 
 			return { out, argStart, rightBracePos + 1 };
@@ -94,7 +123,7 @@ namespace detail
 			if ( rightBracePos == fmt.npos )
 			{
 				dbBreak();
-				throw format_error( "missing end of format specifier" );
+				throw format_exception( "missing end of format specifier" );
 			}
 
 			return { argStart, rightBracePos + 1 };
@@ -241,7 +270,7 @@ namespace detail
 		if ( argStart != fmt.npos )
 		{
 			dbBreak();
-			throw format_error( "too few format arguments" );
+			throw format_exception( "too few format arguments" );
 		}
 	}
 
@@ -268,7 +297,7 @@ namespace detail
 		if ( argStart != fmt.npos )
 		{
 			dbBreak();
-			throw format_error( "too few format arguments" );
+			throw format_exception( "too few format arguments" );
 		}
 
 		return newOut;
@@ -355,6 +384,53 @@ inline std::wstring format( std::wstring_view fmt, const Args&... args )
 	str.reserve( fmt.size() );
 	detail::format_imp( str, fmt, args... );
 	return str;
+}
+
+namespace detail
+{
+	template <typename CharT, typename Traits>
+	inline void format_read_str( std::basic_istream<CharT, Traits>& in, std::basic_string_view<CharT, Traits> str )
+	{
+		for ( auto c : str )
+		{
+			if ( in.peek() == c )
+			{
+				in.get();
+			}
+			else
+			{
+				in.setstate( std::ios::failbit );
+				break;
+			}
+		}
+	}
+}
+
+template <typename CharT, typename Traits>
+void format_read( std::basic_istream<CharT, Traits>& in, std::basic_string_view<CharT, Traits> formatStr )
+{
+	const auto specifier = detail::find_format_specifier( formatStr );
+	if ( specifier.first != formatStr.npos )
+		throw format_exception( "too few arguments supplied" );
+
+	detail::format_read_str( in, formatStr );
+}
+
+template <typename CharT, typename Traits, typename Head, typename... Tail>
+void format_read( std::basic_istream<CharT, Traits>& in, std::basic_string_view<CharT, Traits> formatStr, Head& head, Tail&... tail )
+{
+	const auto specifier = detail::find_format_specifier( formatStr );
+
+	if ( specifier.first == formatStr.npos )
+		throw format_exception( "too many arguments supplied" );
+
+	detail::format_read_str( in, formatStr.substr( 0, specifier.first ) );
+	if ( in.fail() )
+		return;
+
+	in >> head;
+
+	format_read( in, formatStr.substr( specifier.second ), tail... );
 }
 
 } // namespace stdx

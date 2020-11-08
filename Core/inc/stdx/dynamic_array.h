@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdx/memory.h>
+#include <stdx/assert.h>
 
 #include <algorithm>
 #include <iterator>
@@ -14,14 +14,16 @@ class dynamic_array
 {
 public:
 	using value_type = T;
-	using pointer = T * ;
+	using pointer = T*;
 	using const_pointer = const T*;
-	using reference = T & ;
+	using reference = T&;
 	using const_reference = const T&;
+
 	using iterator = pointer;
 	using const_iterator = const_pointer;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
 	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
 
@@ -29,51 +31,67 @@ public:
 
 	dynamic_array() noexcept = default;
 
-	dynamic_array( const dynamic_array& other )
-		: dynamic_array{ other.m_size }
-		, m_size{ other.m_size }
+	dynamic_array( const dynamic_array& other ) : dynamic_array( other.m_size )
 	{
-		std::copy( other.begin(), other.end(), begin() );
+		std::copy( other.begin(), other.end(), m_data );
 	}
 
 	dynamic_array( dynamic_array&& other ) noexcept
-		: m_data{ std::move( other.m_data ) }
+		: m_data{ std::exchange( other.m_data, nullptr ) }
 		, m_size( std::exchange( other.m_size, 0 ) )
 	{}
 
-	dynamic_array( size_type size )
-		: m_data{ stdx::make_unique_for_overwrite<T[]>( size ) }
-		, m_size{ size }
+	// memory left uninitialized
+	explicit dynamic_array( size_type size_ )
+		: m_data{ new T[ size_ ] }
+		, m_size{ size_ }
 	{}
 
-	dynamic_array( size_type size, const T& value )
-		: m_data{ stdx::make_unique_for_overwrite<T[]>( size ) }
-		, m_size{ size }
+	dynamic_array( size_type size_, const T& value )
+		: m_data{ new T[ size_ ] }
+		, m_size{ size_ }
 	{
 		fill( value );
 	}
 
-	dynamic_array( T* data, size_type size ) noexcept
-		: m_data{ data }
-		, m_size{ size }
-	{}
+	// takes ownership of data
+	dynamic_array( T* data_, size_type size_ ) noexcept
+		: m_data{ data_ }
+		, m_size{ size_ }
+	{
+		dbExpects( ( data_ == nullptr ) == ( size_ == 0 ) );
+	}
 
-	dynamic_array( std::unique_ptr<T> data, size_type size ) noexcept
-		: m_data{ std::move( data ) }
-		, m_size{ size }
-	{}
+	dynamic_array( std::initializer_list<T> init )
+		: m_data{ new T[ init.size() ] }, m_size{ init.size() }
+	{
+		std::copy( init.begin(), init.end(), m_data );
+	}
 
-	~dynamic_array() = default;
+	template <typename InputIt>
+	dynamic_array( InputIt first, InputIt last )
+	{
+		m_size = static_cast<size_type>( std::distance( first, last ) );
+		m_data = new T[ m_size ];
+		std::copy( first, last, m_data );
+	}
+
+	~dynamic_array()
+	{
+		clear();
+	}
 
 	dynamic_array& operator=( const dynamic_array& other )
 	{
-		*this = dynamic_array{ other };
+		return *this = dynamic_array{ other };
 	}
 
-	dynamic_array& operator=( dynamic_array&& other )
+	dynamic_array& operator=( dynamic_array&& other ) noexcept
 	{
-		m_data = std::move( other.m_data );
+		clear();
+		m_data = std::exchange( other.m_data, nullptr );
 		m_size = std::exchange( other.m_size, 0 );
+		return *this;
 	}
 
 	// access
@@ -132,24 +150,24 @@ public:
 
 	pointer data() noexcept
 	{
-		return m_data.get();
+		return m_data;
 	}
 
 	const_pointer data() const noexcept
 	{
-		return m_data.get();
+		return m_data;
 	}
 
 	// iterators
 
-	iterator begin() noexcept { return m_data.get(); }
-	iterator end() noexcept { return m_data.get() + m_size; }
+	iterator begin() noexcept { return m_data; }
+	iterator end() noexcept { return m_data + m_size; }
 
-	const_iterator begin() const noexcept { return m_data.get(); }
-	const_iterator end() const noexcept { return m_data.get() + m_size; }
+	const_iterator begin() const noexcept { return m_data; }
+	const_iterator end() const noexcept { return m_data + m_size; }
 
-	const_iterator cbegin() const noexcept { return m_data.get(); }
-	const_iterator cend() const noexcept { return m_data.get() + m_size; }
+	const_iterator cbegin() const noexcept { return m_data; }
+	const_iterator cend() const noexcept { return m_data + m_size; }
 
 	reverse_iterator rbegin() noexcept { return end(); }
 	reverse_iterator rend() noexcept { return begin(); }
@@ -172,60 +190,148 @@ public:
 		return m_size;
 	}
 
-	// operations
-
-	void fill( const T& value )
+	bool empty() const noexcept
 	{
-		for ( auto& element : *this )
+		return m_size == 0;
+	}
+
+	// modifiers
+
+	void clear()
+	{
+		if ( m_data )
 		{
-			element = value;
+			delete[] m_data;
+			m_data = nullptr;
+			m_size = 0;
 		}
 	}
 
-	void swap( dynamic_array& other )
+	// moves data to newly allocated array of size newSize
+	void resize( size_type newSize )
 	{
-		auto temp = std::move( *this );
-		*this = std::move( other );
-		other = std::move( temp );
+		if ( newSize != m_size )
+		{
+			if ( newSize > 0 )
+			{
+				T* newData = resize_imp( newSize );
+
+				delete[] m_data;
+				m_data = newData;
+				m_size = newSize;
+			}
+			else
+			{
+				clear();
+			}
+		}
 	}
 
-	friend bool operator==( const dynamic_array& lhs, const dynamic_array& rhs )
+	// moves data to newly allocated array of size newSize
+	// if newSize is larger than size, fill range [size, newSize-1] with value
+	void resize( size_type newSize, const T& value )
 	{
-		if ( lhs.size() != rhs.size() )
-			return false;
+		if ( newSize != m_size )
+		{
+			if ( newSize > 0 )
+			{
+				T* newData = resize_imp( newSize );
 
-		auto[ lhsIt, rhsIt ] = std::mismatch( lhs.begin(), lhs.end(), rhs.begin() );
-		return lhsIt == lhs.end();
+				if ( newSize > m_size )
+					std::fill( newData + m_size, newData + newSize, value );
+
+				delete[] m_data;
+				m_data = newData;
+				m_size = newSize;
+			}
+			else
+			{
+				clear();
+			}
+		}
 	}
 
-	friend bool operator!=( const dynamic_array& lhs, const dynamic_array& rhs )
+	void fill( const T& value )
 	{
-		return !( lhs == rhs );
+		auto it = m_data;
+		const auto last = m_data + m_size;
+		for ( ; it != last; ++it )
+			*it = value;
 	}
 
-	friend bool operator<( const dynamic_array& lhs, const dynamic_array& rhs )
+	void swap( dynamic_array& other ) noexcept
 	{
-		return std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() );
+		std::swap( m_data, other.m_data );
+		std::swap( m_size, other.m_size );
 	}
 
-	friend bool operator>( const dynamic_array& lhs, const dynamic_array& rhs )
+	void reset( T* data_, size_type size_ )
 	{
-		return rhs < lhs;
+		dbExpects( ( data_ == nullptr ) == ( size_ == 0 ) );
+		clear();
+		m_data = data_;
+		m_size = size_;
 	}
 
-	friend bool operator<=( const dynamic_array& lhs, const dynamic_array& rhs )
+	T* release() noexcept
 	{
-		return !( lhs > rhs );
-	}
-
-	friend bool operator>=( const dynamic_array& lhs, const dynamic_array& rhs )
-	{
-		return !( lhs < rhs );
+		m_size = 0;
+		return std::exchange( m_data, nullptr );
 	}
 
 private:
-	std::unique_ptr<T> m_data;
+	T* resize_imp( size_type newSize )
+	{
+		T* newData = new T[ newSize ];
+		std::move( begin(), begin() + ( std::min )( m_size, newSize ), newData );
+		return newData;
+	}
+
+private:
+	T* m_data = nullptr;
 	size_type m_size = 0;
 };
+
+// comparison
+
+template <typename T>
+bool operator==( const dynamic_array<T>& lhs, const dynamic_array<T>& rhs )
+{
+	if ( lhs.size() != rhs.size() )
+		return false;
+
+	auto[ lhs_it, rhs_it ] = std::mismatch( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() );
+	return lhs_it == lhs.end();
+}
+
+template <typename T>
+inline bool operator!=( const dynamic_array<T>& lhs, const dynamic_array<T>& rhs )
+{
+	return !( lhs == rhs );
+}
+
+template <typename T>
+bool operator<( const dynamic_array<T>& lhs, const dynamic_array<T>& rhs )
+{
+	return std::lexicographical_compare( lhs.begin(), lhs.end(), rhs.begin(), rhs.end() );
+}
+
+template <typename T>
+inline bool operator>( const dynamic_array<T>& lhs, const dynamic_array<T>& rhs )
+{
+	return rhs < lhs;
+}
+
+template <typename T>
+inline bool operator<=( const dynamic_array<T>& lhs, const dynamic_array<T>& rhs )
+{
+	return !( lhs > rhs );
+}
+
+template <typename T>
+inline bool operator>=( const dynamic_array<T>& lhs, const dynamic_array<T>& rhs )
+{
+	return !( lhs < rhs );
+}
 
 } // namespace stdx

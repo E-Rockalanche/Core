@@ -578,11 +578,29 @@ constexpr std::pair<ForwardIt, ForwardIt>
 
 template <typename ForwardIt, typename Generator>
 typename ForwardIt
-	random_element( ForwardIt first, ForwardIt last, Generator&& g )
+	random_element( const ForwardIt first, const ForwardIt last, Generator&& g )
 {
 	dbExpects( first != last );
 	std::uniform_int_distribution<std::ptrdiff_t> dist{ 0, std::distance( first, last ) - 1 };
 	return first + dist( g );
+}
+
+template <typename InputIt, typename T>
+constexpr T accumulate( InputIt first, const InputIt last, T init )
+{
+	for ( ; first != last; ++first )
+		init = std::move( init ) + *first;
+
+	return init;
+}
+
+template <typename InputIt, typename T, typename BinaryOp>
+constexpr T accumulate( InputIt first, const InputIt last, T init, BinaryOp op )
+{
+	for ( ; first != last; ++first )
+		init = op( std::move( init ), *first );
+
+	return init;
 }
 
 } // namespace stdx

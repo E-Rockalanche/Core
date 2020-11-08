@@ -6,22 +6,30 @@
 namespace stdx {
 
 /*
-required:
 
-	T& read() const
-	void next()
+iterator requirements:
+T& read() const
+void next()
 
-optional:
+// input iterator requirements:
+bool equal( const Cursor& ) const
 
-	T* arrow() const
-	void prev()
-	void advance( difference_type n )
-	void advance( size_type n )
-	difference_type distance_to( const Cursor& ) const
-	bool equal( const Cursor& ) const
+// bidirectional iterator requirements:
+void prev()
+
+// random access iterator requirements:
+void advance( difference_type n )
+void advance( size_type n )
+difference_type distance_to( const Cursor& ) const
+
+// optional:
+T* arrow() const
+
 */
 
-namespace detail {
+namespace detail
+{
+
 	template <typename C>
 	using cursor_read_t = decltype( std::declval<C>().read() );
 
@@ -42,6 +50,7 @@ namespace detail {
 
 	template <typename C>
 	using cursor_equal_t = decltype( std::declval<C>().equal( std::declval<C>() ) );
+
 }
 
 template <typename Cursor>

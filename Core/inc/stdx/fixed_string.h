@@ -1,10 +1,8 @@
-#ifndef STDX_FIXED_STRING_HPP
-#define STDX_FIXED_STRING_HPP
+#pragma once
 
-#include <cassert>
+#include <stdx/assert.h>
+
 #include <string_view>
-
-#define dbExpects( condition ) do { const int i = ( condition ) ? 0 : ( assert( false ), 0 ); } while( false )
 
 namespace stdx {
 
@@ -14,9 +12,8 @@ class basic_fixed_string
 public:
 	using traits_type = Traits;
 	using value_type = CharT;
-	using view = std::basic_string_view<CharT, Traits>;
-	using size_type = typename view::size_type;
-	using difference_type = typename view::difference_type;
+	using size_type = std::size_t;
+	using difference_type = std::ptrdiff_t;
 	using pointer = CharT*;
 	using const_pointer = const CharT*;
 	using reference = CharT&;
@@ -25,6 +22,8 @@ public:
 	using const_iterator = const_pointer;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+	using view = std::basic_string_view<CharT, Traits>;
 
 	static constexpr size_type npos = view::npos;
 	static constexpr CharT null_terminator = CharT();
@@ -43,7 +42,7 @@ public:
 	
 	constexpr basic_fixed_string& operator=( const basic_fixed_string& ) noexcept = default;
 	template <std::size_t N2>
-	constexpr basic_fixed_string& operator=( const CharT( &str )[ N2 ] ) noexcept( N2 <= N + 1 ) { return assign( str, N2 - 1 ); }
+	constexpr basic_fixed_string& operator=( const CharT( &str )[ N2 ] ) noexcept( N2 <= N ) { return assign( str, N2 - 1 ); }
 	constexpr basic_fixed_string& operator=( view str ) { return assign( str ); }
 	constexpr basic_fixed_string& operator=( const_pointer str ) { return assign( str ); }
 
@@ -83,23 +82,23 @@ public:
 
 	constexpr reference at( size_type pos )
 	{
-		dbExpects( pos < size() );
+		dbExpects( pos < m_size );
 		return m_data[ pos ];
 	}
 	constexpr const_reference at( size_type pos ) const
 	{
-		dbExpects( pos < size() + 1 );
+		dbExpects( pos < m_size + 1 );
 		return m_data[ pos ];
 	}
 
 	constexpr reference operator[]( size_type pos ) noexcept
 	{
-		dbExpects( pos < size() );
+		dbExpects( pos < m_size );
 		return m_data[ pos ];
 	}
 	constexpr const_reference operator[]( size_type pos ) const noexcept
 	{
-		dbExpects( pos < size() + 1 );
+		dbExpects( pos < m_size + 1 );
 		return m_data[ pos ];
 	}
 
@@ -117,19 +116,19 @@ public:
 	constexpr reference back() noexcept
 	{
 		dbExpects( !empty() );
-		return *( end() - 1 );
+		return m_data[ m_size - 1 ];
 	}
 	constexpr const_reference back() const noexcept 
 	{
 		dbExpects( !empty() );
-		return *( end() - 1 );
+		return m_data[ m_size - 1 ];
 	}
 
 	constexpr pointer data() noexcept { return m_data; }
 	constexpr const_pointer data() const noexcept { return m_data; }
 	constexpr const_pointer c_str() const noexcept { return m_data; }
 
-	constexpr operator view() const noexcept { return view{ data(), size() }; }
+	constexpr operator view() const noexcept { return view{ m_data, m_size }; }
 
 	// iterators
 
@@ -176,7 +175,7 @@ public:
 
 	constexpr void push_back( CharT c )
 	{
-		dbExpects( size() < capacity() );
+		dbExpects( m_size < capacity() );
 		Traits::assign( m_data[ m_size ], c );
 		m_data[ ++m_size ] = null_terminator;
 	}
@@ -204,8 +203,8 @@ public:
 
 	constexpr basic_fixed_string& append( view str, size_type pos, size_type count = npos )
 	{
-		dbExpects( pos <= str.size() );
-		return append( str.begin() + pos, str.begin() + std::min( pos + count, str.size() ) );
+		dbExpects( pos <= str.m_size );
+		return append( str.begin() + pos, str.begin() + std::min( pos + count, str.m_size ) );
 	}
 
 	constexpr basic_fixed_string& append( const_pointer str, size_type count ) { return append( str, str + count ); }
@@ -249,7 +248,7 @@ public:
 
 	constexpr basic_fixed_string& replace( size_type pos, size_type count, view str )
 	{
-		dbExpects( pos <= size() );
+		dbExpects( pos <= m_size );
 		auto dest = m_data + pos;
 		for( auto src = str.begin(), last = str.begin() + count; src != last; ++dest, ++src )
 		{
@@ -262,8 +261,8 @@ public:
 
 	constexpr view substr( size_type pos = 0, size_type count = npos ) const
 	{
-		dbExpects( pos <= size() );
-		return view{ m_data + pos, std::min( size() - pos, count ) };
+		dbExpects( pos <= m_size );
+		return view{ m_data + pos, std::min( m_size - pos, count ) };
 	}
 
 	constexpr size_type copy( pointer dest, size_type count, size_type pos = 0 ) const;
@@ -271,7 +270,7 @@ public:
 	constexpr void resize( size_type count )
 	{
 		dbExpects( count <= capacity() );
-		if ( count < size() )
+		if ( count < m_size )
 		{
 			m_size = count;
 			*end() = null_terminator;
@@ -290,7 +289,7 @@ public:
 	constexpr void resize( size_type count, CharT c )
 	{
 		dbExpects( count <= capacity() );
-		if ( count < size() )
+		if ( count < m_size )
 		{
 			m_size = count;
 			*end() = null_terminator;
@@ -340,8 +339,8 @@ public:
 	constexpr size_type find_last_not_of( CharT c, size_type pos = npos ) const noexcept { return view{ *this }.find_last_not_of( c, pos ); }
 
 private:
-	CharT m_data[ N ]{};
 	size_type m_size = 0;
+	CharT m_data[ N + 1 ]{}; // +1 for null terminator
 };
 
 template <typename CharT, std::size_t N>
@@ -505,5 +504,3 @@ static_assert( Concat.size() == 10 );
 static_assert( Concat.capacity() == 10 );
 
 } // namespace stdx
-
-#endif

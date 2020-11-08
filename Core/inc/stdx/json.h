@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdx/basic_iterator.h>
+#include <stdx/iterator/basic_iterator.h>
 #include <stdx/ctype.h>
 #include <stdx/simple_map.h>
 #include <stdx/type_traits.h>
@@ -22,7 +22,9 @@ namespace stdx
 enum class json_type
 {
 	null,
-	number,
+	integer,
+	uinteger,
+	real,
 	boolean,
 	string,
 	array,
@@ -192,12 +194,16 @@ class basic_json
 	static_assert( std::is_class_v<String>, "String must be a class type" );
 
 public:
-
+	// enum type identifier
 	using type = json_type;
 
 	struct null_type {};
 
-	using number_type = double;
+	using integer_type = int64_t;
+
+	using unsigned_integer_type = uint64_t;
+
+	using real_type = double;
 
 	using string_type = String;
 	using char_type = std::remove_const_t<typename stdx::container_traits<String>::value_type>;
@@ -240,11 +246,20 @@ public:
 
 	basic_json( std::nullptr_t ) noexcept {}
 
-	basic_json( number_type value ) noexcept : m_data{ value } {}
+	basic_json( integer_type value ) noexcept : m_data{ value } {}
 
-	template <typename T,
-		std::enable_if_t<stdx::is_numeric_v<T>, int> = 0>
-	basic_json( T value ) : m_data{ static_cast<number_type>( value ) } {}
+	template <typename T, std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, int> = 0>
+	basic_json( T value ) : m_data{ static_cast<integer_type>( value ) } {}
+
+	basic_json( unsigned_integer_type value ) noexcept : m_data{ value } {}
+
+	template <typename T, std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, int> = 0>
+	basic_json( T value ) : m_data{ static_cast<unsigned_integer_type>( value ) } {}
+
+	basic_json( real_type value ) noexcept : m_data{ value } {}
+
+	template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+	basic_json( T value ) : m_data{ static_cast<real_type>( value ) } {}
 
 	basic_json( bool value ) noexcept : m_data{ value } {}
 
@@ -255,6 +270,7 @@ public:
 	basic_json( view_type value ) : m_data{ string_type( value ) } {}
 
 	basic_json( const char_type* value ) : basic_json( string_type{ value } ) {}
+
 	template <std::size_t N>
 	basic_json( const char_type( &value )[ N ] ) : basic_json( string_type{ value } ) {}
 
@@ -268,23 +284,22 @@ public:
 
 	basic_json( object_type&& value ) noexcept : m_data{ std::move( value ) } {}
 
-	basic_json( std::initializer_list<std::pair<std::string, basic_json>> init ) : basic_json( object_type{ init } ) {}
+	basic_json( std::initializer_list<std::pair<key_type, mapped_type>> init ) : basic_json( object_type{ init } ) {}
 
-	template <typename T,
-		std::enable_if_t<std::is_convertible_v<T, view_type>, int> = 0>
+	template <typename T, std::enable_if_t<std::is_convertible_v<T, view_type>, int> = 0>
 	basic_json( T&& t ) : m_data{ string_type( view_type( t ) ) } {}
 
-	template <typename T,
-		std::enable_if_t<stdx::is_list_v<T> || stdx::is_array_like_v<T> || stdx::is_set_v<T>, int> = 0>
+	template <typename T, std::enable_if_t<stdx::is_list_v<T> || stdx::is_array_like_v<T> || stdx::is_set_v<T>, int> = 0>
 	basic_json( T&& t ) : m_data{ array_type( std::begin( t ), std::end( t ) ) } {}
 
-	template <typename T,
-		std::enable_if_t<stdx::is_map_v<T>, int> = 0>
+	template <typename T, std::enable_if_t<stdx::is_map_v<T>, int> = 0>
 	basic_json( T&& t ) : m_data{ object_type( std::begin( t ), std::end( t ) ) } {}
 
 	static basic_json null() { return basic_json{}; }
 	static basic_json boolean( bool value = false ) { return basic_json{ value }; }
-	static basic_json number( number_type value = 0 ) { return basic_json{ value }; }
+	static basic_json integer( integer_type value = 0 ) { return basic_json{ value }; }
+	static basic_json uinteger( unsigned_integer_type value = 0 ) { return basic_json{ value }; }
+	static basic_json real( real_type value = 0 ) { return basic_json{ value }; }
 
 	static basic_json string() { return basic_json{ string_type{} }; }
 	static basic_json string( const string_type& value ) { return basic_json{ value }; }
@@ -312,9 +327,6 @@ public:
 
 	// conversion
 
-	number_type& num() { return std::get<number_type>( m_data ); }
-	const number_type& num() const { return std::get<number_type>( m_data ); }
-
 	string_type& str() { return std::get<string_type>( m_data ); }
 	const string_type& str() const { return std::get<string_type>( m_data ); }
 
@@ -328,12 +340,14 @@ public:
 	{
 		switch ( get_type() )
 		{
-			case type::null:	return false;
-			case type::number:	return std::get<number_type>( m_data ) > 0;
-			case type::boolean: return std::get<bool>( m_data );
-			case type::string:	return !std::get<string_type>( m_data ).empty();
-			case type::array:	return !std::get<array_type>( m_data ).empty();
-			case type::object:	return !std::get<object_type>( m_data ).empty();
+			case type::null:		return false;
+			case type::integer:		return std::get<integer_type>( m_data ) > 0;
+			case type::uinteger:	return std::get<unsigned_integer_type>( m_data ) > 0;
+			case type::real:		return std::get<real_type>( m_data ) > 0;
+			case type::boolean:		return std::get<bool>( m_data );
+			case type::string:		return !std::get<string_type>( m_data ).empty();
+			case type::array:		return true;
+			case type::object:		return true;
 		}
 		dbBreak();
 		return false;
@@ -348,14 +362,16 @@ public:
 	}
 
 	template <typename T,
-		std::enable_if_t<stdx::is_numeric_v<T>, int> = 0>
+		std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 	operator T() const
 	{
 		switch ( get_type() )
 		{
-			case type::number:	return static_cast<T>( std::get<number_type>( m_data ) );
-			case type::boolean:	return static_cast<T>( std::get<bool>( m_data ) );
-			default: throw_exception( "cannot convert to numeric type" );
+			case type::integer:		return static_cast<T>( std::get<integer_type>( m_data ) );
+			case type::uinteger:	return static_cast<T>( std::get<unsigned_integer_type>( m_data ) );
+			case type::real:		return static_cast<T>( std::get<real_type>( m_data ) );
+			case type::boolean:		return static_cast<T>( std::get<bool>( m_data ) );
+			default:				throw_exception( "cannot convert to numeric type" );
 		}
 	}
 
@@ -368,7 +384,7 @@ public:
 		if ( !is_string() )
 			throw_exception( "cannot convert to string type" );
 
-		return T( std::get<string_type>( m_data ) );
+		return T( str() );
 	}
 
 	template <typename T>
@@ -378,7 +394,13 @@ public:
 	bool get<bool>() const& { return std::get<bool>( m_data ); }
 
 	template <>
-	number_type get<number_type>() const& { return std::get<number_type>( m_data ); }
+	integer_type get<integer_type>() const& { return std::get<integer_type>( m_data ); }
+
+	template <>
+	unsigned_integer_type get<unsigned_integer_type>() const& { return std::get<unsigned_integer_type>( m_data ); }
+
+	template <>
+	real_type get<real_type>() const& { return std::get<real_type>( m_data ); }
 
 	template <>
 	string_type get<string_type>() const& { return std::get<string_type>( m_data ); }
@@ -396,7 +418,13 @@ public:
 	bool get<bool>() && { return std::get<bool>( m_data ); }
 
 	template <>
-	number_type get<number_type>() && { return std::get<number_type>( m_data ); }
+	integer_type get<integer_type>() && { return std::get<integer_type>( m_data ); }
+
+	template <>
+	unsigned_integer_type get<unsigned_integer_type>() && { return std::get<unsigned_integer_type>( m_data ); }
+
+	template <>
+	real_type get<real_type>() && { return std::get<real_type>( m_data ); }
 
 	template <>
 	string_type get<string_type>() && { return std::move( std::get<string_type>( m_data ) ); }
@@ -406,12 +434,6 @@ public:
 
 	template <>
 	object_type get<object_type>() && { return std::move( std::get<object_type>( m_data ) ); }
-
-	template <typename T>
-	operator T() const& { return get<T>(); }
-
-	template <typename T>
-	operator T() && { return get<T>(); }
 
 	// serialization
 
@@ -667,8 +689,6 @@ public:
 	}
 
 	const char* c_str() const { return str().c_str(); }
-	operator view_type() const { return str(); }
-	operator zview_type() const { auto& s = str(); return zview_type{ s.c_str(), s.size() }; }
 	size_type length() const { return str().length(); }
 
 	basic_json& append( size_type count, char_type c ) { str().append( count, c ); return *this; }
@@ -929,23 +949,33 @@ private:
 	static basic_json parse_imp( zview_type v, size_type& pos );
 
 	static string_type parse_string( zview_type v, size_type& pos );
-	static number_type parse_number( zview_type v, size_type& pos );
 	static array_type parse_array( zview_type v, size_type& pos );
 	static object_type parse_object( zview_type v, size_type& pos );
+
+	template <typename T>
+	static T parse_number( view_type v );
 
 private:
 
 	// order must match enum type order
-	std::variant<null_type, double, bool, string_type, array_type, object_type> m_data;
+	std::variant<null_type, integer_type, unsigned_integer_type, real_type, bool, string_type, array_type, object_type> m_data;
 };
 
 template <typename String, template<class> typename Vector, template<class, class> typename Map>
 template <typename T>
 T basic_json<String, Vector, Map>::get() const&
 {
-	if constexpr ( stdx::is_numeric_v<T> )
+	if constexpr ( std::is_floating_point_v<T> )
 	{
-		return static_cast<T>( std::get<number_type>( m_data ) );
+		return static_cast<T>( std::get<real_type>( m_data ) );
+	}
+	else if constexpr ( std::is_signed_v<T> && std::is_integral_v<T> )
+	{
+		return static_cast<T>( std::get<integer_type>( m_data ) );
+	}
+	else if constexpr ( std::is_unsigned_v<T> && std::is_integral_v<T> )
+	{
+		return static_cast<T>( std::get<unsigned_integer_type>( m_data ) );
 	}
 	else if constexpr ( std::is_convertible_v<T, view_type> )
 	{
@@ -972,9 +1002,17 @@ template <typename String, template<class> typename Vector, template<class, clas
 template <typename T>
 T basic_json<String, Vector, Map>::get() &&
 {
-	if constexpr ( stdx::is_numeric_v<T> )
+	if constexpr ( std::is_floating_point_v<T> )
 	{
-		return static_cast<T>( std::get<number_type>( m_data ) );
+		return static_cast<T>( std::get<real_type>( m_data ) );
+	}
+	else if constexpr ( std::is_signed_v<T> && std::is_integral_v<T> )
+	{
+		return static_cast<T>( std::get<integer_type>( m_data ) );
+	}
+	else if constexpr ( std::is_unsigned_v<T> && std::is_integral_v<T> )
+	{
+		return static_cast<T>( std::get<unsigned_integer_type>( m_data ) );
 	}
 	else if constexpr ( std::is_convertible_v<T, view_type> )
 	{
@@ -1087,7 +1125,11 @@ void basic_json<String, Vector, Map>::dump_imp( std::basic_string<char_type>& s,
 	{
 		case type::null: s += "null"; break;
 
-		case type::number: s += std::to_string( get<number_type>() ); break;
+		case type::integer: s += std::to_string( get<integer_type>() ); break;
+
+		case type::uinteger: s += std::to_string( get<unsigned_integer_type>() ); break;
+
+		case type::real: s += std::to_string( get<real_type>() ); break;
 
 		case type::boolean: s += ( get<bool>() ? "true" : "false" ); break;
 
@@ -1217,7 +1259,37 @@ basic_json<String, Vector, Map> basic_json<String, Vector, Map>::parse_imp( zvie
 
 		default: // number
 		{
-			result = parse_number( v, i );
+			bool negative = false;
+
+			if ( v[ i ] == '+' )
+				++i;
+			else if ( v[ i ] == '-' )
+				negative = true;
+
+			const auto startIndex = i;
+
+			if ( negative )
+				++i;
+
+			while ( stdx::isdigit( v[ i ] ) )
+				++i;
+
+			if ( v[ i ] == '.' )
+			{
+				++i;
+				while ( stdx::isdigit( v[ i ] ) )
+					++i;
+
+				result = parse_number<real_type>( v.substr( startIndex, i - startIndex ) );
+			}
+			else if ( negative )
+			{
+				result = parse_number<integer_type>( v.substr( startIndex, i - startIndex ) );
+			}
+			else
+			{
+				result = parse_number<unsigned_integer_type>( v.substr( startIndex, i - startIndex ) );
+			}
 			break;
 		}
 	}
@@ -1329,18 +1401,17 @@ typename basic_json<String, Vector, Map>::string_type basic_json<String, Vector,
 }
 
 template <typename String, template<class> typename Vector, template<class, class> typename Map>
-typename basic_json<String, Vector, Map>::number_type basic_json<String, Vector, Map>::parse_number( zview_type v, size_type& pos )
+template <typename T>
+T basic_json<String, Vector, Map>::parse_number( view_type v )
 {
-	dbExpects( pos < v.size() );
-	dbExpects( stdx::isdigit( v[ pos ] ) );
+	dbExpects( !v.empty() );
 
-	number_type result = 0;
-	auto[ last, ec ] = std::from_chars( v.data() + pos, v.data() + v.size(), result );
-	if ( ec != std::errc{} )
+	T result = 0;
+	auto last = v.data() + v.size();
+	auto[ p, ec ] = std::from_chars( v.data(), last, result );
+	if ( p != last || ec != std::errc{} )
 		throw_exception( "failed to parse number" );
 
-	dbAssert( last > ( v.data() + pos ) );
-	pos = static_cast<size_type>( last - v.data() );
 	return result;
 }
 
