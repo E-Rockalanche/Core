@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 
@@ -13,37 +14,6 @@ namespace stdx
 
 namespace detail
 {
-	template <typename OutputIt, typename... Args>
-	static constexpr void construct( OutputIt first, const OutputIt last, const Args&... args )
-	{
-		using T = typename std::iterator_traits<OutputIt>::value_type;
-		for ( ; first != last; ++first )
-			new( first ) T( args... );
-	}
-
-	template <typename InputIt, typename OutputIt>
-	static constexpr void copy_construct( InputIt first, const InputIt last, OutputIt d_first )
-	{
-		using T = typename std::iterator_traits<OutputIt>::value_type;
-		for ( ; first != last; ++first, ++d_first )
-			new( d_first ) T( *first );
-	}
-
-	template <typename InputIt, typename OutputIt>
-	static constexpr void move_construct( InputIt first, const InputIt last, OutputIt d_first )
-	{
-		using T = typename std::iterator_traits<OutputIt>::value_type;
-		for ( ; first != last; ++first, ++d_first )
-			new( d_first ) T( std::move( *first ) );
-	}
-
-	template <typename InputIt>
-	static constexpr void destroy( InputIt first, const InputIt last )
-	{
-		using T = typename std::iterator_traits<InputIt>::value_type;
-		for ( ; first != last; ++first )
-			first->~T();
-	}
 
 	template <typename T, std::size_t Size>
 	struct small_vector_storage
@@ -57,6 +27,11 @@ namespace detail
 
 		constexpr small_vector_storage() noexcept = default;
 		constexpr small_vector_storage( size_type n ) noexcept { dbExpects( n <= Size ); }
+
+		~small_vector_storage()
+		{
+			std::destroy_n( data(), this->size );
+		}
 
 		constexpr void init_reserve( size_type n )
 		{
@@ -73,16 +48,15 @@ namespace detail
 
 		constexpr void clear()
 		{
-			detail::destroy( data(), data() + this->size );
+			std::destroy_n( data(), this->size );
 			this->size = 0;
 		}
 
 		constexpr void move( small_vector_storage& other )
 		{
 			dbExpects( this->size == 0 );
-			const auto other_last = other.data() + other.size;
-			std::move( other.data(), other_last, data() );
-			detail::destroy( other.data(), other_last );
+			std::uninitialized_move_n( other.data(), other.size, data() );
+			std::destroy_n( other.data(), other.size );
 			this->size = std::exchange( other.size, 0 );
 		}
 	};
@@ -109,7 +83,11 @@ namespace detail
 		~sbo_vector_storage()
 		{
 			if ( !is_local() )
+			{
+				std::destroy_n( data(), this->size );
 				delete[] this->first;
+				this->size = 0;
+			}
 		}
 
 		constexpr void init_reserve( size_type n )
@@ -138,8 +116,8 @@ namespace detail
 
 			if ( this->size <= Size )
 			{
-				detail::move_construct( data(), data() + this->size, local_data() );
-				detail::destroy( data(), data() + this->size );
+				std::uninitialized_move_n( data(), this->size, local_data());
+				std::destroy_n( data(), this->size );
 				delete[] this->first;
 				this->first = reinterpret_cast<char*>( local_data() );
 				this->capacity = Size;
@@ -150,24 +128,13 @@ namespace detail
 			}
 		}
 
-		constexpr void clear()
-		{
-			parent::clear();
-			this->capacity = Size;
-			if ( !is_local() )
-			{
-				delete[] this->first;
-				this->first = reinterpret_cast<char*>( &this->buffer );
-			}
-		}
-
-		constexpr void take( sbo_vector_storage& other )
+		constexpr void move( sbo_vector_storage& other )
 		{
 			dbExpects( this->size = 0 );
 			dbExpects( this->first == local_data() );
 			if ( other.is_local() )
 			{
-				parent::take( other );
+				parent::move( other );
 			}
 			else
 			{
@@ -182,8 +149,9 @@ namespace detail
 		{
 			dbExpects( n >= this->size );
 			char* newData = new char[ sizeof( T ) * n ];
-			detail::move_construct( data(), data() + this->size, reinterpret_cast<T*>( newData ) );
-			detail::destroy( data(), data() + this->size );
+
+			std::uninitialized_move_n( data(), this->size, reinterpret_cast<T*>( newData ) );
+			std::destroy_n( data(), this->size );
 
 			if ( !is_local() )
 				delete[] this->first;
@@ -229,13 +197,13 @@ public:
 
 	constexpr vector_s( size_type count, const T& value ) : m_storage{ count }
 	{
-		detail::construct( m_storage.data(), m_storage.data() + count, value );
+		std::uninitialized_fill_n( m_storage.data(), count, value );
 		m_storage.m_size = count;
 	}
 
 	constexpr vector_s( size_type count ) : m_storage{ count }
 	{
-		detail::construct( m_storage.data(), m_storage.data() + count );
+		std::uninitialized_fill_n( m_storage.data(), count, T() );
 		m_storage.m_size = count;
 	}
 
@@ -245,7 +213,7 @@ public:
 	{
 		const auto count = stdx::narrow_cast<size_type>( std::distance( first, last ) );
 		m_storage.init_reserve( count );
-		detail::copy_construct( first, last, m_storage.data() );
+		std::uninitialized_copy( first, last, m_storage.data() );
 		m_storage.size = count;
 	}
 
@@ -253,15 +221,12 @@ public:
 
 	constexpr vector_s( vector_s&& other ) noexcept
 	{
-		m_storage.take( other.m_storage );
+		m_storage.move( other.m_storage );
 	}
 
 	constexpr vector_s( std::initializer_list<T> init ) : vector_s{ init.begin(), init.end() } {}
 
-	~vector_s()
-	{
-		detail::destroy( data(), data() + m_storage.size );
-	}
+	~vector_s() = default;
 
 	constexpr vector_s& operator=( const vector_s& other )
 	{
@@ -271,10 +236,8 @@ public:
 
 	constexpr vector_s& operator=( vector_s&& other ) noexcept
 	{
-		if ( !empty() )
-			clear();
-
-		m_storage.take( other.m_storage );
+		clear();
+		m_storage.move( other.m_storage );
 		return *this;
 	}
 
@@ -288,7 +251,7 @@ public:
 	{
 		m_storage.clear();
 		m_storage.reserve( count );
-		detail::construct( m_storage.data(), m_storage.data() + count, value );
+		std::uninitialized_fill_n( m_storage.data(), count, value );
 		m_storage.size = count;
 	}
 
@@ -299,7 +262,7 @@ public:
 		m_storage.clear();
 		const auto count = stdx::narrow_cast<size_type>( std::distance( first, last ) );
 		m_storage.reserve( count );
-		detail::copy_construct( first, last, m_storage.data() );
+		std::uninitialized_copy( first, last, m_storage.data() );
 		m_storage.size = count;
 	}
 

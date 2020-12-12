@@ -153,15 +153,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="inc\ByteIO.h" />
+    <ClInclude Include="inc\Compiler.h" />
     <ClInclude Include="inc\EventSink.h" />
+    <ClInclude Include="inc\Inventory\InventoryManager.h" />
     <ClInclude Include="inc\Math\Camera.h" />
-    <ClInclude Include="inc\Math\Colour.h" />
+    <ClInclude Include="inc\Math\Color.h" />
+    <ClInclude Include="inc\Math\Colour_old.h" />
     <ClInclude Include="inc\Math\FixedPoint.h" />
     <ClInclude Include="inc\Math\Forwards.h" />
     <ClInclude Include="inc\Math\Matrix.h" />
+    <ClInclude Include="inc\Math\Primitives.h" />
     <ClInclude Include="inc\Math\Transform.h" />
     <ClInclude Include="inc\Math\Vector2.h" />
     <ClInclude Include="inc\Math\Vector3.h" />
+    <ClInclude Include="inc\Math\Vector4.h" />
     <ClInclude Include="inc\Meta\Meta.h" />
     <ClInclude Include="inc\Meta\MetaClass.h" />
     <ClInclude Include="inc\Meta\MetaDeclare.h" />
@@ -186,13 +191,16 @@
     <ClInclude Include="inc\stdx\assert.h" />
     <ClInclude Include="inc\stdx\bit.h" />
     <ClInclude Include="inc\stdx\bounded.h" />
+    <ClInclude Include="inc\stdx\compressed_pair.h" />
     <ClInclude Include="inc\stdx\concepts.h" />
     <ClInclude Include="inc\stdx\container.h" />
     <ClInclude Include="inc\stdx\ctype.h" />
     <ClInclude Include="inc\stdx\dynamic_array.h" />
     <ClInclude Include="inc\stdx\enum.h" />
+    <ClInclude Include="inc\stdx\expected.h" />
     <ClInclude Include="inc\stdx\fixed_string.h" />
     <ClInclude Include="inc\stdx\flat_map.h" />
+    <ClInclude Include="inc\stdx\flat_map_old.h" />
     <ClInclude Include="inc\stdx\flat_set.h" />
     <ClInclude Include="inc\stdx\format.h" />
     <ClInclude Include="inc\stdx\int.h" />
@@ -219,6 +227,11 @@
     <ClInclude Include="inc\stdx\utility.h" />
     <ClInclude Include="inc\stdx\vector_s.h" />
     <ClInclude Include="inc\stdx\zstring_view.h" />
+    <ClInclude Include="inc\Threading\Future.h" />
+    <ClInclude Include="inc\Threading\Promise.h" />
+    <ClInclude Include="inc\Threading\SharedState.h" />
+    <ClInclude Include="inc\Threading\Task.h" />
+    <ClInclude Include="inc\Threading\ThreadPool.h" />
     <ClInclude Include="inc\UniqueId.h" />
   </ItemGroup>
   <ItemGroup>
@@ -228,6 +241,7 @@
     <ClCompile Include="src\Meta\MetaPrimitive.cpp" />
     <ClCompile Include="src\Name.cpp" />
     <ClCompile Include="src\Profiler.cpp" />
+    <ClCompile Include="src\Threading\ThreadPool.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

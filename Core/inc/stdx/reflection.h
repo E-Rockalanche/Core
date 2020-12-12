@@ -66,10 +66,22 @@ namespace detail {
 } // namespace detail
 
 template <typename T>
-constexpr auto type_name_v = detail::extract_type_name<T>();
+struct type_name
+{
+	static constexpr auto value = detail::extract_type_name<T>();
+};
+
+template <typename T>
+inline constexpr auto type_name_v = type_name<T>::value;
 
 template <typename T, T Value>
-constexpr auto value_name_v = detail::extract_value_name<T, Value>();
+struct value_name
+{
+	static constexpr auto value = detail::extract_value_name<T, Value>();
+};
+
+template <typename T, T Value>
+inline constexpr auto value_name_v = value_name<T, Value>::value;
 
 } // namespace reflection
 } // namespace stdx

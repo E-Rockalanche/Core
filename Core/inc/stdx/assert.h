@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+
 #if defined( _DEBUG )
 
 #ifndef DEBUG
@@ -105,3 +107,16 @@
 #define dbEnsures( condition ) EmptyBlock
 
 #endif
+
+namespace stdx
+{
+
+template <typename... Args>
+void fatal_error( const char* format_str, const Args&... args )
+{
+	std::printf( "fatal error: " );
+	std::printf( format_str, args... );
+	std::exit( 1 );
+}
+
+}

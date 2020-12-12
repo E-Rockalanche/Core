@@ -27,12 +27,13 @@ public:
 	using const_iterator = typename std::array<T, Height * Width>::const_iterator;
 
 	static constexpr Matrix Zero() noexcept;
-	static constexpr Matrix One() noexcept;
 	static constexpr Matrix Identity() noexcept;
 
 	static constexpr size_t width = Width;
 	static constexpr size_t height = Height;
 	static constexpr size_t area = Width * Height;
+
+	struct FillTag {};
 
 	// construction
 
@@ -40,13 +41,17 @@ public:
 
 	constexpr Matrix( const Matrix& ) = default;
 
-	explicit constexpr Matrix( const T& value )
-		: Matrix( value, std::make_index_sequence<area>() )
-	{}
+	explicit constexpr Matrix( const T& value ) : elements{}
+	{
+		static_assert( Height == Width, "only square matrices can construct with diagonal" );
 
-	constexpr Matrix( std::initializer_list<T> init )
-		: Matrix( init, std::make_index_sequence<area>() )
-	{}
+		for ( size_t i = 0; i < Height; ++i )
+			rows[ i ][ i ] = value;
+	}
+
+	constexpr Matrix( FillTag, const T& value ) : Matrix( value, std::make_index_sequence<area>() ) {}
+
+	constexpr Matrix( std::initializer_list<T> init ) : Matrix( init, std::make_index_sequence<area>() ) {}
 
 	constexpr Matrix& operator=( const Matrix& other ) noexcept
 	{
@@ -172,13 +177,7 @@ private:
 template <size_t H, size_t W, typename T>
 constexpr Matrix<H, W, T> Matrix<H, W, T>::Zero() noexcept
 {
-	return Matrix( 0 );
-}
-
-template <size_t H, size_t W, typename T>
-constexpr Matrix<H, W, T> Matrix<H, W, T>::One() noexcept
-{
-	return Matrix( 1 );
+	return Matrix( FillTag{}, 0 );
 }
 
 template <size_t H, size_t W, typename T>
@@ -186,12 +185,7 @@ constexpr Matrix<H, W, T> Matrix<H, W, T>::Identity() noexcept
 {
 	static_assert( H == W, "Only square matrices can have an identity" );
 
-	Matrix<H, W, T> result( 0 );
-	for ( size_t i = 0; i < H; ++i )
-	{
-		result[ i ][ i ] = 1;
-	}
-	return result;
+	return Matrix( 1 );
 }
 
 template <size_t H1, size_t WH, size_t W2, typename T>

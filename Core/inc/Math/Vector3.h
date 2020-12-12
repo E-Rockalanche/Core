@@ -164,7 +164,7 @@ struct Position3
 	using value_type = T;
 	using size_type = std::size_t;
 
-	constexpr Position3() noexcept = default;
+	Position3() noexcept = default;
 
 	constexpr Position3( const Position3& ) noexcept = default;
 
@@ -204,9 +204,9 @@ struct Position3
 		return *this;
 	}
 
-	T x = 0;
-	T y = 0;
-	T z = 0;
+	T x;
+	T y;
+	T z;
 };
 
 template <typename T>
@@ -259,7 +259,7 @@ public:
 	struct ScaleTag {};
 	struct NoScaleTag {};
 
-	Normal3() noexcept = default; // cannot be constexpr. Starts in invalid state
+	Normal3() noexcept = default;
 
 	constexpr Normal3( const Normal3& ) noexcept = default;
 
@@ -289,9 +289,9 @@ public:
 	constexpr const T& z() const noexcept { return m_z; }
 
 private:
-	T m_x = 0;
-	T m_y = 0;
-	T m_z = 0;
+	T m_x;
+	T m_y;
+	T m_z;
 };
 
 template <typename T>

@@ -328,7 +328,7 @@ constexpr std::string_view enum_name( E value ) noexcept
 	if ( index < enum_count_v<E> )
 		return enum_names_v<E>[ index ];
 
-	return {};
+	return "";
 }
 
 

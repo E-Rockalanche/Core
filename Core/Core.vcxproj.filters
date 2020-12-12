@@ -43,9 +43,6 @@
     <ClInclude Include="inc\stdx\fixed_string.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
-    <ClInclude Include="inc\stdx\flat_map.h">
-      <Filter>inc\stdx</Filter>
-    </ClInclude>
     <ClInclude Include="inc\stdx\flat_set.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
@@ -78,9 +75,6 @@
     </ClInclude>
     <ClInclude Include="inc\stdx\vector_s.h">
       <Filter>inc\stdx</Filter>
-    </ClInclude>
-    <ClInclude Include="inc\Math\Colour.h">
-      <Filter>inc\Math</Filter>
     </ClInclude>
     <ClInclude Include="inc\stdx\basic_int.h">
       <Filter>inc\stdx</Filter>
@@ -205,6 +199,51 @@
     <ClInclude Include="inc\stdx\iterator\filter_iterator.h">
       <Filter>inc\stdx\iterators</Filter>
     </ClInclude>
+    <ClInclude Include="inc\Math\Vector4.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\flat_map_old.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\flat_map.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\compressed_pair.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\expected.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Future.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Compiler.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\SharedState.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Promise.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Task.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\ThreadPool.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Inventory\InventoryManager.h">
+      <Filter>inc\Inventory</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Primitives.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Colour_old.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Math\Color.h">
+      <Filter>inc\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Profiler.cpp">
@@ -224,6 +263,9 @@
     </ClCompile>
     <ClCompile Include="src\Meta\MetaPrimitive.cpp">
       <Filter>src\Meta</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Threading\ThreadPool.cpp">
+      <Filter>src\Threading</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -250,6 +292,15 @@
     </Filter>
     <Filter Include="inc\stdx\iterators">
       <UniqueIdentifier>{6c4b9011-6129-424a-9739-64f0177d0310}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\Threading">
+      <UniqueIdentifier>{8d9c07f8-c482-4775-8767-213ec02286d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\Inventory">
+      <UniqueIdentifier>{e7013596-8f42-4f67-8be8-f8cd36b0a1ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Threading">
+      <UniqueIdentifier>{44feb5dd-51d7-42a9-a250-6d3b304137aa}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
