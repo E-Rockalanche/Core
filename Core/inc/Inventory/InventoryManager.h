@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Threading/Future.h"
+#include "Threading/ThreadPool.h"
 
 #include <stdx/flat_map.h>
 #include <stdx/reflection.h>
@@ -53,6 +54,7 @@ struct InventoryEntry
 	std::string filename;
 	InventoryItemHash hash = 0;
 	LoadState state = LoadState::Loading;
+	Threading::SharedFuture<Handle> future;
 
 	InventoryEntry( std::string filename_, InventoryItemHash hash_ )
 		: filename( std::move( filename_ ) ), hash( hash_ )
@@ -156,10 +158,12 @@ class InventoryBucket : public BaseInventoryBucket
 	static_assert( stdx::has_no_extents_v<T> );
 
 public:
-	using Handle = InventoryHandle<T>;
 	using Entry = InventoryEntry<T>;
+	using Handle = InventoryHandle<T>;
 
 	Handle LoadSync( std::string_view filename );
+
+	Threading::SharedFuture<Handle> LoadAsync( std::string_view filename );
 
 	void UnloadSync( const Entry* entry );
 
@@ -173,7 +177,7 @@ InventoryHandle<T> InventoryBucket<T>::LoadSync( std::string_view filename )
 {
 	const auto hash = stdx::hash_fnv1a<InventoryItemHash>( filename );
 
-	std::unique_lock lock( m_mutex );
+	std::lock_guard lock( m_mutex );
 
 	auto it = m_items.find( hash );
 	if ( it == m_items.end() )
@@ -190,7 +194,61 @@ InventoryHandle<T> InventoryBucket<T>::LoadSync( std::string_view filename )
 	else
 	{
 		dbAssertMessage( it->second->filename == filename, "detected hash collision [%s] [%s]", filename.data(), it->second->filename.c_str() );
-		return Handle( it->second.get() );
+		auto* entry = it->second.get();
+		std::unique_lock entryLock( entry->mutex );
+		if ( entry->state == LoadState::Loading )
+		{
+			dbLogWarning( "LoadSync called on entry which is loading asynchronously" );
+			auto future = entry->future;
+			entryLock.unlock();
+			return future.Get();
+		}
+		else
+		{
+			return Handle( entry );
+		}
+	}
+}
+
+template <typename T>
+Threading::SharedFuture<InventoryHandle<T>> InventoryBucket<T>::LoadAsync( std::string_view filename )
+{
+	const auto hash = stdx::hash_fnv1a<InventoryItemHash>( filename );
+
+	std::lock_guard lock( m_mutex );
+
+	auto it = m_items.find( hash );
+	if ( it == m_items.end() )
+	{
+		// load async
+		dbLog( "InventoryBucket<%s>::LoadSync( %s )", stdx::reflection::type_name_v<T>.c_str(), filename.data() );
+		auto[ pos, inserted ] = m_items.insert( { hash, std::make_unique<Entry>( std::string( filename ), hash ) } );
+		dbAssert( inserted );
+		auto* entry = pos->second.get();
+
+		auto[ future, promise ] = Threading::MakeSharedFuturePromisePair<Handle>();
+
+		Threading::Execute( Threading::ConcurrentExecutor(), Threading::Task<Handle, void>( [entry]
+			{
+				auto item = LoadInventoryItem<T>( filename );
+				std::lock_guard lock( entry->mutex );
+				entry->item = std::move( item );
+				entry->state = LoadState::Ready;
+				entry->future.Discard();
+				return Handle( entry );
+			}, std::move( promise ) ) );
+
+		return std::move( future );
+	}
+	else
+	{
+		dbAssertMessage( it->second->filename == filename, "detected hash collision [%s] [%s]", filename.data(), it->second->filename.c_str() );
+		auto* entry = it->second;
+		std::lock_guard entryLock( entry->mutex );
+		if ( entry->state == LoadState::Ready )
+			return Threading::MakeReadySharedFuture( Handle( it->second.get() ) );
+		else
+			return entry->future;
 	}
 }
 

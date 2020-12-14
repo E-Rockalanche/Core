@@ -641,10 +641,10 @@ private:
 };
 
 template <typename T, std::size_t Size>
-using small_vector = vector_s<T, Size, false>;
+using local_vector = vector_s<T, Size, false>;
 
 template <typename T, std::size_t Size>
-using sbo_vector = vector_s<T, Size, true>;
+using small_vector = vector_s<T, Size, true>;
 
 }
 
