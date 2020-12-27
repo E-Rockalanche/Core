@@ -3,38 +3,41 @@
 #include <stdx/assert.h>
 #include <stdx/expected.h>
 #include <stdx/type_traits.h>
+#include <stdx/vector_s.h>
 
 #include <functional>
 #include <mutex>
-#include <vector>
 
-#include  "Compiler.h"
-
-namespace Threading
+namespace Threading::Detail
 {
 
-using Error = std::exception_ptr;
-
 template <typename T>
-using Expected = stdx::expected<T, Error>;
-
-template <typename T>
-class BaseSharedState
+class SharedState
 {
-public:
 	static_assert( !std::is_reference_v<T> );
 
-	BaseSharedState() = default;
-	BaseSharedState( const BaseSharedState& ) = delete;
-	BaseSharedState( BaseSharedState&& ) = delete;
+public:
 
-	explicit BaseSharedState( const Expected<T>& result ) : m_result( result ) {}
-	explicit BaseSharedState( Expected<T>&& result ) : m_result( std::move( result ) ) {}
+	using ValueType = T;
+	using ErrorType = std::exception_ptr;
+	using ExpectedType = stdx::expected<T, ErrorType>;
+	using UnexpectedType = stdx::unexpected<ErrorType>;
 
-	virtual ~BaseSharedState() = default;
+	SharedState() = default;
+	SharedState( const SharedState& ) = delete;
+	SharedState( SharedState&& ) = delete;
 
-	BaseSharedState& operator=( const BaseSharedState& ) = delete;
-	BaseSharedState& operator=( BaseSharedState&& ) = delete;
+	explicit SharedState( const ExpectedType& result ) : m_result( result ) {}
+	explicit SharedState( ExpectedType&& result ) : m_result( std::move( result ) ) {}
+
+	explicit SharedState( const UnexpectedType& result ) : m_result( result ) {}
+	explicit SharedState( UnexpectedType&& result ) : m_result( std::move( result ) ) {}
+
+	template <typename... Args>
+	explicit SharedState( Args&&... args ) : m_result( std::in_place, std::forward<Args>( args )... ) {}
+
+	SharedState& operator=( const SharedState& ) = delete;
+	SharedState& operator=( SharedState&& ) = delete;
 
 	bool IsReady() const
 	{
@@ -42,7 +45,7 @@ public:
 		return m_result.has_value();
 	}
 
-	void SetException( Error error )
+	void SetError( ErrorType error )
 	{
 		dbAssert( !m_result.has_value() );
 		{
@@ -50,7 +53,7 @@ public:
 
 			m_result = stdx::unexpected( std::move( error ) );
 
-			OnValueSet();
+			UnsafeNotifyContinuations();
 		}
 		m_condition.notify_all();
 	}
@@ -61,141 +64,94 @@ public:
 		m_condition.wait( lock, [this] { return m_result.has_value(); } );
 	}
 
-protected:
 	template <typename... Args>
-	void SetValueImp( Args&&... args )
+	void SetValue( Args&&... args )
 	{
 		dbAssert( !m_result.has_value() );
 
 		{
 			std::lock_guard lock( m_mutex );
 
-			m_result = Expected<T>( std::forward<Args>( args )... );
+			m_result = ExpectedType( std::forward<Args>( args )... );
 
-			OnValueSet();
+			UnsafeNotifyContinuations();
 		}
 
 		m_condition.notify_all();
 	}
 
-	virtual void OnValueSet() = 0;
-
-protected:
-	mutable std::mutex m_mutex;
-	mutable std::condition_variable m_condition;
-	std::optional<Expected<T>> m_result;
-};
-
-template <typename T>
-class SharedStateAccess : public BaseSharedState<T>
-{
-public:
-	using BaseSharedState<T>::BaseSharedState;
-
-	void SetValue( const T& value )
+	template <typename E = ExpectedType>
+	void SetExpected( E&& result )
 	{
-		this->SetValueImp( value );
+		dbAssert( !m_result.has_value() );
+
+		{
+			std::lock_guard lock( m_mutex );
+			m_result = std::forward<E>( result );
+
+			UnsafeNotifyContinuations();
+		}
+
+		m_condition.notify_all();
 	}
 
-	void SetValue( T&& value )
+	template <typename Function>
+	void SetContinuation( Function&& func )
 	{
-		this->SetValueImp( std::move( value ) );
+		std::unique_lock lock( this->m_mutex );
+
+		if ( m_result.has_value() )
+		{
+			lock.unlock();
+			std::invoke( std::forward<Function>( func ), *m_result );
+		}
+		else
+		{
+			m_continuations.emplace_back( std::forward<Function>( func ) );
+		}
 	}
 
-	T Get()
+	decltype( auto ) Get() const &
+	{
+		WaitAndThrowOnError();
+		if constexpr ( std::is_void_v<T> )
+			return;
+		else
+			return this->m_result->value();
+	}
+
+	decltype( auto ) Get() &&
+	{
+		WaitAndThrowOnError();
+		if constexpr ( std::is_void_v<T> )
+			return;
+		else
+			return std::move( this->m_result )->value();
+	}
+
+private:
+	void WaitAndThrowOnError() const
 	{
 		this->Wait();
 
 		if ( !this->m_result->has_value() )
 			std::rethrow_exception( std::move( *this->m_result ).error() );
-
-		return std::move( this->m_result )->value();
-	}
-};
-
-template <>
-class SharedStateAccess<void> : public BaseSharedState<void>
-{
-public:
-	using BaseSharedState<void>::BaseSharedState;
-
-	void SetValue()
-	{
-		this->SetValueImp();
 	}
 
-	void Get()
+	void UnsafeNotifyContinuations()
 	{
-		this->Wait();
-		if ( !this->m_result->has_value() )
-			std::rethrow_exception( std::move( this->m_result )->error() );
-	}
-};
-
-template <typename T>
-class SingleContinuationState : public SharedStateAccess<T>
-{
-public:
-	using SharedStateAccess<T>::SharedStateAccess;
-
-	template <typename Function>
-	void SetContinuation( Function&& f )
-	{
-		std::lock_guard lock( this->m_mutex );
-
-		if ( this->m_result.has_value() )
-			f( std::move( this->m_result ).value() );
-		else
-			m_continuation = std::forward<Function>( f );
-	}
-
-private:
-	void OnValueSet() override
-	{
-		if ( m_continuation )
+		for ( auto& func : m_continuations )
 		{
-			m_continuation( std::move( this->m_result ).value() );
-			m_continuation = nullptr;
+			func( *m_result );
 		}
-	}
-
-private:
-	std::function<void( Expected<T> )> m_continuation;
-};
-
-template <typename T>
-class MultipleContinuationState : public SharedStateAccess<T>
-{
-public:
-	using SharedStateAccess<T>::SharedStateAccess;
-
-	template <typename Function>
-	void SetContinuation( Function&& f )
-	{
-		std::unique_lock lock( this->m_mutex );
-
-		if ( this->m_result.has_value() )
-		{
-			lock.unlock();
-			f( this->m_result.value() );
-		}
-		else
-		{
-			m_continuations.emplace_back( std::forward<Function>( f ) );
-		}
-	}
-
-private:
-	void OnValueSet() override
-	{
-		for ( auto& f : m_continuations )
-			f( this->m_result.value() );
-
 		m_continuations.clear();
 	}
 
 private:
-	std::vector<std::function<void( Expected<T> )>> m_continuations;
+	mutable std::mutex m_mutex;
+	mutable std::condition_variable m_condition;
+	std::optional<ExpectedType> m_result;
+	stdx::small_vector<std::function<void( ExpectedType& )>, 1> m_continuations;
 };
 
-} // namespace Threading
+} // namespace Threading::Detail

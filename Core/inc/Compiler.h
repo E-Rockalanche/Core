@@ -5,9 +5,7 @@
 
 #include <type_traits>
 
-#define STDX_enable_if( condition ) bool RequiresTag = true, std::enable_if_t<( condition ), int> = 0>
-
-#define STDX_requires( condition ) template <bool RequiresTag = true, std::enable_if_t<( condition ), int> = 0>
+#define STDX_requires( condition ) bool RequiresTag = true, std::enable_if_t<( condition ), int> = 0>
 
 #define STDX_concept inline constexpr bool
 

@@ -201,7 +201,7 @@ InventoryHandle<T> InventoryBucket<T>::LoadSync( std::string_view filename )
 			dbLogWarning( "LoadSync called on entry which is loading asynchronously" );
 			auto future = entry->future;
 			entryLock.unlock();
-			return future.Get();
+			return std::move( future ).Get();
 		}
 		else
 		{

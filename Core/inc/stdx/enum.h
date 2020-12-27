@@ -624,11 +624,13 @@ namespace detail
 		using key_type = typename Map::key_type;
 		using mapped_type = T;
 		using reference = std::pair<const key_type, mapped_type&>;
+		using size_type = typename Map::size_type;
+		using difference_type = typename Map::difference_type;
 
 		constexpr enum_map_cursor() noexcept = default;
 		constexpr enum_map_cursor( const enum_map_cursor& ) = default;
 
-		constexpr enum_map_cursor( Map& map, const std::ptrdiff_t index ) noexcept : m_map{ &map }, m_index{ index }
+		constexpr enum_map_cursor( Map& map, difference_type index ) noexcept : m_map{ &map }, m_index{ index }
 		{
 			dbEnsures( 0 <= index && index <= m_map->ssize() );
 		}
@@ -661,11 +663,11 @@ namespace detail
 		constexpr void prev() noexcept
 		{
 			dbExpects( m_map );
+			dbExpects( m_index > 0 );
 			--m_index;
-			dbEnsures( m_index >= 0 );
 		}
 
-		constexpr void advance( const std::ptrdiff_t n ) noexcept
+		constexpr void advance( difference_type n ) noexcept
 		{
 			dbExpects( m_map );
 			m_index += n;
@@ -678,7 +680,7 @@ namespace detail
 			return m_index == other.m_index;
 		}
 
-		constexpr std::ptrdiff_t distance_to( const enum_map_cursor& other ) const noexcept
+		constexpr difference_type distance_to( const enum_map_cursor& other ) const noexcept
 		{
 			dbExpects( m_map && m_map == other.m_map );
 			return other.m_index - m_index;
@@ -686,7 +688,10 @@ namespace detail
 
 	private:
 		Map* m_map = nullptr;
-		std::ptrdiff_t m_index = 0;
+		difference_type m_index = 0;
+
+		template <typename Map2, typename T2>
+		friend class enum_map_cursor;
 	};
 
 } // namespace detail
@@ -694,12 +699,14 @@ namespace detail
 template <typename E, typename T>
 class enum_map
 {
+	using storage_type = std::array<T, enum_count_v<E>>;
+
 public:
 	using key_type = E;
 	using mapped_type = T;
 	using value_type = std::pair<const key_type, mapped_type>;
-	using size_type = std::size_t;
-	using difference_type = std::ptrdiff_t;
+	using size_type = typename storage_type::size_type;
+	using difference_type = typename storage_type::difference_type;
 	using reference = std::pair<const key_type, mapped_type&>;
 	using const_reference = std::pair<const key_type, const mapped_type&>;
 
@@ -717,23 +724,23 @@ public:
 	constexpr enum_map( const enum_map& ) = default;
 	constexpr enum_map( enum_map&& ) noexcept = default;
 
-	constexpr enum_map( const std::initializer_list<value_type> init )
+	constexpr enum_map( std::initializer_list<value_type> init )
 	{
 #ifdef _DEBUG
-		std::array<bool, enum_count_v<E>> checks{};
-		std::size_t initCount = 0;
+		std::array<bool, enum_count_v<E>> initialized{};
+		size_type initCount = 0;
 #endif
 
-		for ( const auto& entry : init )
+		for ( auto& entry : init )
 		{
 			const auto index = enum_index( entry.first );
 			dbExpects( index < size() );
 			m_data[ index ] = entry.second;
 
 #ifdef _DEBUG
-			dbExpects( !checks[ index ] );
-			checks[ index ] = true;
-			initCount++;
+			dbExpects( !initialized[ index ] );
+			initialized[ index ] = true;
+			++initCount;
 #endif
 		}
 #ifdef _DEBUG
@@ -803,7 +810,7 @@ private:
 	{}
 
 private:
-	std::array<T, enum_count_v<E>> m_data{};
+	storage_type m_data{};
 };
 
 template <typename E, typename T>

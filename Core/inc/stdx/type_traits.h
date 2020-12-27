@@ -73,6 +73,15 @@ struct has_no_extents
 template <typename T>
 inline constexpr bool has_no_extents_v = has_no_extents<T>::value;
 
+template <typename T1, typename T2>
+struct is_same_decayed
+{
+	static constexpr bool value = std::is_same_v<std::decay_t<T1>, std::decay_t<T2>>;
+};
+
+template <typename T1, typename T2>
+inline constexpr bool is_same_decayed_v = is_same_decayed<T1, T2>::value;
+
 // detection toolkit
 // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4502.pdf
 

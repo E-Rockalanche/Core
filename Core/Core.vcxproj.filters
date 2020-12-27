@@ -214,19 +214,10 @@
     <ClInclude Include="inc\stdx\expected.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
-    <ClInclude Include="inc\Threading\Future.h">
-      <Filter>inc\Threading</Filter>
-    </ClInclude>
     <ClInclude Include="inc\Compiler.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="inc\Threading\SharedState.h">
-      <Filter>inc\Threading</Filter>
-    </ClInclude>
     <ClInclude Include="inc\Threading\Promise.h">
-      <Filter>inc\Threading</Filter>
-    </ClInclude>
-    <ClInclude Include="inc\Threading\Task.h">
       <Filter>inc\Threading</Filter>
     </ClInclude>
     <ClInclude Include="inc\Threading\ThreadPool.h">
@@ -243,6 +234,33 @@
     </ClInclude>
     <ClInclude Include="inc\Math\Color.h">
       <Filter>inc\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\SharedState_old.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\SharedState.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Continuation.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Future_old.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\static_map.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Task_old.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\functional.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Future.h">
+      <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Threading\Execution.h">
+      <Filter>inc\Threading</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -16,7 +16,7 @@ namespace detail
 {
 
 	template <typename T, std::size_t Size>
-	struct small_vector_storage
+	struct static_vector_storage
 	{
 		using size_type = std::size_t;
 
@@ -25,10 +25,10 @@ namespace detail
 		std::aligned_storage_t<sizeof( T ) * Size, alignof( T )> buffer;
 		size_type size = 0;
 
-		constexpr small_vector_storage() noexcept = default;
-		constexpr small_vector_storage( size_type n ) noexcept { dbExpects( n <= Size ); }
+		constexpr static_vector_storage() noexcept = default;
+		constexpr static_vector_storage( size_type n ) noexcept { dbExpects( n <= Size ); }
 
-		~small_vector_storage()
+		~static_vector_storage()
 		{
 			std::destroy_n( data(), this->size );
 		}
@@ -52,7 +52,7 @@ namespace detail
 			this->size = 0;
 		}
 
-		constexpr void move( small_vector_storage& other )
+		constexpr void move( static_vector_storage& other )
 		{
 			dbExpects( this->size == 0 );
 			std::uninitialized_move_n( other.data(), other.size, data() );
@@ -62,16 +62,17 @@ namespace detail
 	};
 
 	template <typename T, std::size_t Size>
-	struct sbo_vector_storage : public small_vector_storage<T, Size>
+	struct small_vector_storage
 	{
-		using parent = small_vector_storage<T, Size>;
-		using size_type = typename parent::size_type;
+		using size_type = std::size_t;
 
-		char* first = reinterpret_cast<char*>( &buffer );
+		std::aligned_storage_t<sizeof( T ) * Size, alignof( T )> buffer;
+		char* first = reinterpret_cast<char*>( &this->buffer );
+		size_type size = 0;
 		size_type capacity = Size;
 
-		constexpr sbo_vector_storage() noexcept = default;
-		constexpr sbo_vector_storage( size_type n )
+		constexpr small_vector_storage() noexcept = default;
+		constexpr small_vector_storage( size_type n )
 		{
 			if ( n > Size )
 			{
@@ -80,15 +81,17 @@ namespace detail
 			}
 		}
 
-		~sbo_vector_storage()
+		~small_vector_storage()
 		{
+			clear();
 			if ( !is_local() )
-			{
-				std::destroy_n( data(), this->size );
 				delete[] this->first;
-				this->size = 0;
-			}
 		}
+
+		constexpr T* data() noexcept { return reinterpret_cast<T*>( this->first ); }
+		constexpr const T* data() const noexcept { return reinterpret_cast<const T*>( this->first ); }
+		constexpr size_type max_size() const noexcept { return std::numeric_limits<size_type>::max(); }
+		constexpr bool empty() const noexcept { return this->size == 0; }
 
 		constexpr void init_reserve( size_type n )
 		{
@@ -99,9 +102,11 @@ namespace detail
 			this->capacity = n;
 		}
 
-		constexpr T* data() noexcept { return reinterpret_cast<T*>( this->first ); }
-		constexpr const T* data() const noexcept { return reinterpret_cast<const T*>( this->first ); }
-		constexpr size_type max_size() const noexcept { return std::numeric_limits<size_type>::max(); }
+		constexpr void clear()
+		{
+			std::destroy_n( data(), this->size );
+			this->size = 0;
+		}
 
 		constexpr void reserve( size_type n )
 		{
@@ -128,7 +133,7 @@ namespace detail
 			}
 		}
 
-		constexpr void move( sbo_vector_storage& other )
+		constexpr void move( small_vector_storage& other )
 		{
 			dbExpects( this->size = 0 );
 			dbExpects( this->first == local_data() );
@@ -164,7 +169,7 @@ namespace detail
 		constexpr T* local_data() noexcept { return reinterpret_cast<T*>( &this->buffer ); }
 		constexpr const T* local_data() const noexcept { return reinterpret_cast<T*>( &this->buffer ); }
 
-		constexpr bool is_local() const noexcept { return this->first == reinterpret_cast<const T*>( &this->buffer ); }
+		constexpr bool is_local() const noexcept { return this->first == reinterpret_cast<const char*>( &this->buffer ); }
 	};
 }
 
@@ -172,7 +177,7 @@ template <typename T, std::size_t Size, bool Resizable = false>
 class vector_s
 {
 private:
-	using storage_type = std::conditional_t<Resizable, detail::sbo_vector_storage<T, Size>, detail::small_vector_storage<T, Size>>;
+	using storage_type = std::conditional_t<Resizable, detail::small_vector_storage<T, Size>, detail::static_vector_storage<T, Size>>;
 
 public:
 	using value_type = T;
@@ -505,8 +510,10 @@ public:
 	constexpr reference emplace_back( Args&&... args )
 	{
 		reserve_extra( 1 );
-		new( m_storage.data() + m_storage.size ) T( std::forward<Args>( args )... );
+		auto p = m_storage.data() + m_storage.size;
+		new( p ) T( std::forward<Args>( args )... );
 		m_storage.size++;
+		return *p;
 	}
 
 	constexpr void pop_back()

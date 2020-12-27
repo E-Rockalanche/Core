@@ -11,10 +11,12 @@ template <typename R, typename... Args>
 class Task
 {
 public:
+	using FunctionType = std::function<R( Args... )>;
+	using PromiseType = Promise<R>;
+
 	Task() noexcept = default;
 
-	template <typename Function>
-	Task( Function&& f, Promise<R> promise ) : m_function( std::forward<Function>( f ) ), m_promise( std::move( promise ) ) {}
+	Task( FunctionType f, PromiseType promise ) : m_function( std::move( f ) ), m_promise( std::move( promise ) ) {}
 
 	void operator()( Args&&... args )
 	{
@@ -42,18 +44,20 @@ public:
 	}
 
 private:
-	std::function<R( Args... )> m_function;
-	Promise<R> m_promise;
+	FunctionType m_function;
+	PromiseType m_promise;
 };
 
 template <typename R>
 class Task<R, void>
 {
 public:
+	using FunctionType = std::function<R()>;
+	using PromiseType = Promise<void>;
+
 	Task() noexcept = default;
 
-	template <typename Function>
-	Task( Function&& f, Promise<R> promise ) : m_function( std::forward<Function>( f ) ), m_promise( std::move( promise ) ) {}
+	Task( FunctionType f, PromiseType promise ) : m_function( std::move( f ) ), m_promise( std::move( promise ) ) {}
 
 	void operator()()
 	{
@@ -81,8 +85,8 @@ public:
 	}
 
 private:
-	std::function<R()> m_function;
-	Promise<R> m_promise;
+	FunctionType m_function;
+	PromiseType m_promise;
 };
 
 }

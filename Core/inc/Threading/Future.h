@@ -1,15 +1,19 @@
 #pragma once
 
-#include "Promise.h"
-#include "SharedState.h"
-#include "Task.h"
+#include "Compiler.h"
 
-#include <memory>
+#include "Continuation.h"
+#include "Execution.h"
+#include "SharedState.h"
+#include "ThreadPool.h"
+
+#include <stdx/functional.h>
 
 namespace Threading
 {
 
-// forward declarations
+template <typename T>
+class BaseFuture;
 
 template <typename T>
 class Future;
@@ -17,40 +21,162 @@ class Future;
 template <typename T>
 class SharedFuture;
 
-template <typename T, typename Executor>
+template <typename T, typename Exec>
 class ContinuableFuture;
 
-template <typename T, typename Executor>
+template <typename T, typename Exec>
 class ContinuableSharedFuture;
 
-// detail
+template <typename T, typename... Args>
+Future<T> MakeReadyFuture( Args&&... args );
 
-template <typename Function, typename... Args>
-struct ContinuationResultOf
+template <typename T, typename... Args>
+SharedFuture<T> MakeReadySharedFuture( Args&&... args );
+
+template <typename T>
+std::pair<Future<T>, Promise<T>> MakeFuturePromisePair();
+
+template <typename T>
+std::pair<SharedFuture<T>, Promise<T>> MakeSharedFuturePromisePair();
+
+// type traits
+
+template <typename T>
+struct IsFuture : std::false_type {};
+
+template <typename T>
+struct IsFuture<Future<T>> : std::true_type {};
+
+template <typename T>
+struct IsFuture<SharedFuture<T>> : std::true_type {};
+
+template <typename T, typename Exec>
+struct IsFuture<ContinuableFuture<T, Exec>> : std::true_type {};
+
+template <typename T, typename Exec>
+struct IsFuture<ContinuableSharedFuture<T, Exec>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool IsFuture_v = IsFuture<T>::value;
+
+template <typename T>
+struct IsSharedFuture : std::false_type {};
+
+template <typename T>
+struct IsSharedFuture<SharedFuture<T>> : std::true_type {};
+
+template <typename T, typename Exec>
+struct IsSharedFuture<ContinuableSharedFuture<T, Exec>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool IsSharedFuture_v = IsSharedFuture<T>::value;
+
+template <typename T>
+struct IsContinuableFuture : std::false_type {};
+
+template <typename T, typename Exec>
+struct IsContinuableFuture<ContinuableFuture<T, Exec>> : std::true_type {};
+
+template <typename T, typename Exec>
+struct IsContinuableFuture<ContinuableSharedFuture<T, Exec>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool IsContinuableFuture_v = IsContinuableFuture<T>::value;
+
+template <typename T>
+struct IsContinuableSharedFuture : std::false_type {};
+
+template <typename T, typename Exec>
+struct IsContinuableSharedFuture<ContinuableSharedFuture<T, Exec>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool IsContinuableSharedFuture_v = IsContinuableSharedFuture<T>::value;
+
+template <typename T>
+struct IsNestedFuture : std::false_type {};
+
+template <typename T>
+struct IsNestedFuture<Future<T>> : IsFuture<T> {};
+
+template <typename T>
+struct IsNestedFuture<SharedFuture<T>> : IsFuture<T> {};
+
+template <typename T, typename Exec>
+struct IsNestedFuture<ContinuableFuture<T, Exec>> : IsFuture<T> {};
+
+template <typename T, typename Exec>
+struct IsNestedFuture<ContinuableSharedFuture<T, Exec>> : IsFuture<T> {};
+
+template <typename T>
+inline constexpr bool IsNestedFuture_v = IsNestedFuture<T>::value;
+
+template <typename T>
+struct RemoveExecutor {};
+
+template <typename T, typename Exec>
+struct RemoveExecutor<ContinuableFuture<T, Exec>>
 {
-	using Type = std::decay_t<std::invoke_result_t<Function, Args...>>;
+	using type = Future<T>;
 };
 
-template <typename Function>
-struct ContinuationResultOf<Function, void>
+template <typename T, typename Exec>
+struct RemoveExecutor<ContinuableSharedFuture<T, Exec>>
 {
-	using Type = std::decay_t<std::invoke_result_t<Function>>;
+	using type = SharedFuture<T>;
 };
 
-template <typename Function, typename... Args>
-using ContinuationResultOf_t = typename ContinuationResultOf<Function, Args...>::Type;
+template <typename T>
+using RemoveExecutor_t = typename RemoveExecutor<T>::type;
 
-template <typename StateType, typename Executor>
-class BasicContinuableFuture;
+template <typename T, typename Executor>
+struct AddExecutor {};
 
-template <typename StateType>
-class BaseFuture
+template <typename T, typename Executor>
+struct AddExecutor<Future<T>, Executor>
+{
+	using type = ContinuableFuture<T, Executor>;
+};
+
+template <typename T, typename Executor>
+struct AddExecutor<SharedFuture<T>, Executor>
+{
+	using type = ContinuableSharedFuture<T, Executor>;
+};
+
+template <typename T, typename OldExecutor, typename Executor>
+struct AddExecutor<ContinuableFuture<T, OldExecutor>, Executor>
+{
+	using type = ContinuableFuture<T, Executor>;
+};
+
+template <typename T, typename OldExecutor, typename Executor>
+struct AddExecutor<ContinuableSharedFuture<T, OldExecutor>, Executor>
+{
+	using type = ContinuableSharedFuture<T, Executor>;
+};
+
+template <typename T, typename Executor>
+using AddExecutor_t = typename AddExecutor<T, Executor>::type;
+
+// future implementation
+
+namespace Detail
+{
+
+
+template <typename T>
+class [[nodiscard]] BaseFuture
 {
 public:
+	using ValueType = T;
+	using ExpectedType = Expected<T>;
+	using StateType = Detail::SharedState<T>;
+
 	BaseFuture() noexcept = default;
-	BaseFuture( const BaseFuture& ) = default;
-	BaseFuture( BaseFuture&& ) = default;
-	explicit BaseFuture( std::shared_ptr<StateType> state ) : m_state( std::move( state ) ) {}
+	BaseFuture( const BaseFuture& ) noexcept = default;
+	BaseFuture( BaseFuture&& ) noexcept = default;
+
+	explicit BaseFuture( std::shared_ptr<StateType> state ) noexcept : m_state( std::move( state ) ) {}
 
 	~BaseFuture()
 	{
@@ -61,7 +187,7 @@ public:
 	BaseFuture& operator=( const BaseFuture& ) = default;
 	BaseFuture& operator=( BaseFuture&& ) = default;
 
-	void Detach()
+	void Discard()
 	{
 		m_state = nullptr;
 	}
@@ -73,6 +199,7 @@ public:
 
 	void Wait() const
 	{
+		dbAssert( m_state );
 		m_state->Wait();
 	}
 
@@ -80,287 +207,298 @@ protected:
 	std::shared_ptr<StateType> m_state;
 };
 
-// continuable futures
+}
 
-template <typename Executor, typename R, typename T>
-class Continuation
+template <typename T>
+class Future : public Detail::BaseFuture<T>
 {
 public:
-	Continuation( const Executor& exec, Task<R, T> task )
-		: m_executor( exec )
-		, m_task( std::move( task ) )
-	{}
+	using ValueType = T;
+	using ExpectedType = Expected<T>;
 
-	void operator()( Expected<T> value )
+	using Detail::BaseFuture<T>::BaseFuture;
+
+	Future( const Future& ) = delete;
+	Future& operator=( const Future& ) = delete;
+
+	Future( Future&& ) = default;
+	Future& operator=( Future&& ) = default;
+
+	decltype( auto ) Get() &&
 	{
-		if ( value.has_value() )
+		this->Wait();
+		return std::move( *std::exchange( this->m_state, nullptr ) ).Get();
+	}
+
+	SharedFuture<T> Share() && noexcept;
+
+	template <typename Exec>
+	ContinuableFuture<T, Exec> Via( const Exec& executor ) &&;
+
+	template <typename U = T, std::enable_if_t<IsFuture_v<U>, int> = 0>
+	auto Unwrap() && -> RemoveExecutor_t<U>;
+};
+
+template <typename T>
+template <typename U, std::enable_if_t<IsFuture_v<U>, int>>
+auto Future<T>::Unwrap() && -> RemoveExecutor_t<U>
+{
+	auto[ future, promise ] = MakeFuturePromisePair<typename U::ValueType>();
+	std::move( *this ).Via( InlineExecutor() ).Then( [ promise = std::move( promise ) ]( ExpectedType&& expectedFuture ) mutable
+	{
+		if ( expectedFuture.has_value() )
+			std::move( expectedFuture ).value().Then( [ promise = std::move( promise ) ]( typename U::ExpectedType&& expectedValue ) mutable
 		{
-			if constexpr ( std::is_void_v<T> )
-				m_executor.Execute( std::move( m_task ) );
-			else
-				m_executor.Execute( [ task = std::move( m_task ), value = std::move( value ) ]() mutable { task( std::move( value ).value() ); } );
-		}
+			promise.SetExpected( std::move( expectedValue ) );
+		} );
 		else
+			promise.SetError( std::move( expectedFuture ).error() );
+	} );
+	return std::move( future );
+}
+
+template <typename T>
+class SharedFuture : public Detail::BaseFuture<T>
+{
+public:
+	using ValueType = T;
+	using ExpectedType = Expected<T>;
+
+	using Detail::BaseFuture<T>::BaseFuture;
+
+	decltype( auto ) Get() &&
+	{
+		this->Wait();
+		return std::exchange( this->m_state, nullptr )->Get();
+	}
+
+	template <typename Exec>
+	ContinuableSharedFuture<T, Exec> Via( const Exec& executor ) &&;
+
+	template <typename U = T, std::enable_if_t<IsFuture_v<U>, int> = 0>
+	auto Unwrap() && -> RemoveExecutor_t<U>;
+};
+
+template <typename T>
+template <typename U, std::enable_if_t<IsFuture_v<U>, int>>
+auto SharedFuture<T>::Unwrap() && -> RemoveExecutor_t<U>
+{
+	auto[ future, promise ] = MakeFuturePromisePair<typename U::ValueType>();
+	std::move( *this ).Via( InlineExecutor() ).Then( [ promise = std::move( promise ) ]( const ExpectedType& expectedFuture ) mutable
+	{
+		if ( expectedFuture.has_value() )
+			expectedFuture.value().Then( [ promise = std::move( promise ) ]( typename U::ExpectedType&& expectedValue ) mutable
 		{
-			m_task.SetException( std::move( value ).error() );
-		}
-
-		/*
-		m_executor.Execute( [ task = std::move( m_task ), value = std::move( value ) ]() mutable
-			{
-				if ( value.has_value() )
-				{
-					if constexpr ( std::is_void_v<T> )
-						task();
-					else
-						task( std::move( value ).value() );
-				}
-				else
-				{
-					task.SetException( std::move( value ).error() );
-				}
-			} );
-			*/
-	}
-
-private:
-	Executor m_executor;
-	Task<R, T> m_task;
-};
-
-template <typename T, typename Executor>
-class ContinuableFuture : public BaseFuture<SingleContinuationState<T>>
-{
-public:
-	ContinuableFuture( std::shared_ptr<SingleContinuationState<T>> state, const Executor& exec )
-		: BaseFuture<SingleContinuationState<T>>( std::move( state ) ), m_executor( exec )
-	{}
-
-	template <typename Function>
-	ContinuableFuture<ContinuationResultOf_t<Function, T>, Executor> Then( Function&& f ) &&
-	{
-		using Result = ContinuationResultOf_t<Function, T>;
-		auto state = std::make_shared<SingleContinuationState<Result>>();
-
-		Task<Result, T> task( std::forward<Function>( f ), Promise<Result>( state ) );
-
-		this->m_state->SetContinuation( Continuation( m_executor, std::move( task ) ) );
-
-		this->m_state = nullptr;
-		return ContinuableFuture<Result, Executor>( std::move( state ), m_executor );
-	}
-
-	operator Future<T>()
-	{
-		return Future<T>( std::move( this->m_state ) );
-	}
-
-private:
-	Executor m_executor;
-};
-
-template <typename T, typename Executor>
-class ContinuableSharedFuture : public BaseFuture<MultipleContinuationState<T>>
-{
-public:
-	ContinuableSharedFuture( std::shared_ptr<MultipleContinuationState<T>> state, const Executor& exec )
-		: BaseFuture<MultipleContinuationState<T>>( std::move( state ) ), m_executor( exec )
-	{}
-
-	template <typename Function>
-	ContinuableFuture<ContinuationResultOf_t<Function, T>, Executor> Then( Function&& f ) &&
-	{
-		using Result = ContinuationResultOf_t<Function, T>;
-		auto state = std::make_shared<SingleContinuationState<Result>>();
-
-		Task<Result, T> task( std::forward<Function>( f ), Promise<Result>( state ) );
-
-		this->m_state->SetContinuation( Continuation( m_executor, std::move( task ) ) );
-
-		this->m_state = nullptr;
-		return ContinuableFuture<Result, Executor>( std::move( state ), m_executor );
-	}
-
-	operator SharedFuture<T>()
-	{
-		return SharedFuture<T>( std::move( this->m_state ) );
-	}
-
-private:
-	Executor m_executor;
-};
-
-// final future types
-
-template <typename T>
-class Future : public BaseFuture<SingleContinuationState<T>>
-{
-public:
-	using BaseFuture<SingleContinuationState<T>>::BaseFuture;
-
-	Future( const Future& ) = delete;
-	Future( Future&& ) noexcept = default;
-	Future& operator=( const Future& ) = delete;
-	Future& operator=( Future&& ) noexcept = default;
-
-	T Get()
-	{
-		return std::exchange( this->m_state, nullptr )->Get();
-	}
-
-	template <typename Executor>
-	ContinuableFuture<T, Executor> Via( const Executor& exec ) &&
-	{
-		return ContinuableFuture<T, Executor>( std::move( this->m_state ), exec );
-	}
-};
-
-template <>
-class Future<void> : public BaseFuture<SingleContinuationState<void>>
-{
-public:
-	using BaseFuture<SingleContinuationState<void>>::BaseFuture;
-
-	Future( const Future& ) = delete;
-	Future& operator=( const Future& ) = delete;
-
-	void Get()
-	{
-		std::exchange( this->m_state, nullptr )->Get();
-	}
-
-	template <typename Executor>
-	ContinuableFuture<void, Executor> Via( const Executor& exec ) &&
-	{
-		return ContinuableFuture<void, Executor>( std::move( this->m_state ) );
-	}
-};
-
-template <typename T>
-class SharedFuture : public BaseFuture<MultipleContinuationState<T>>
-{
-public:
-	using BaseFuture<MultipleContinuationState<T>>::BaseFuture;
-
-	T Get()
-	{
-		return std::exchange( this->m_state, nullptr )->Get();
-	}
-
-	template <typename Executor>
-	ContinuableSharedFuture<T, Executor> Via( const Executor& exec ) &&
-	{
-		return ContinuableSharedFuture<T, Executor>( std::move( this->m_state ), exec );
-	}
-};
-
-template <>
-class SharedFuture<void> : public BaseFuture<MultipleContinuationState<void>>
-{
-public:
-	using BaseFuture<MultipleContinuationState<void>>::BaseFuture;
-
-	void Get()
-	{
-		std::exchange( this->m_state, nullptr )->Get();
-	}
-
-	template <typename Executor>
-	ContinuableSharedFuture<void, Executor> Via( const Executor& exec ) &&
-	{
-		return ContinuableSharedFuture<void, Executor>( std::move( this->m_state ) );
-	}
-};
-
-// util functions
-
-template<typename T>
-Future<T> MakeReadyFuture( T&& value )
-{
-	return Future<T>( std::make_shared<SingleContinuationState<T>>( std::forward<T>( value ) ) );
-}
-
-template<typename T>
-SharedFuture<T> MakeReadySharedFuture( T&& value )
-{
-	return SharedFuture<T>( std::make_shared<MultipleContinuationState<T>>( std::forward<T>( value ) ) );
+			promise.SetExpected( std::move( expectedValue ) );
+		} );
+		else
+			promise.SetError( expectedFuture.error() );
+	} );
+	return std::move( future );
 }
 
 template <typename T>
-std::pair<Future<T>, Promise<T>> MakeFuturePromisePair()
+SharedFuture<T> Future<T>::Share() && noexcept
 {
-	auto state = std::make_shared<SingleContinuationState<T>>();
+	return SharedFuture<T>( std::move( this->m_state ) );
+}
+
+template<typename T, typename... Args>
+inline Future<T> MakeReadyFuture( Args&&... args )
+{
+	return Future<T>( std::make_shared<Detail::SharedState<T>>( std::forward<Args>( args )... ) );
+}
+
+template<typename T, typename... Args>
+inline SharedFuture<T> MakeReadySharedFuture( Args&&... args )
+{
+	return SharedFuture<T>( std::make_shared<Detail::SharedState<T>>( std::forward<Args>( args )... ) );
+}
+
+template <typename T>
+inline std::pair<Future<T>, Promise<T>> MakeFuturePromisePair()
+{
+	auto state = std::make_shared<Detail::SharedState<T>>();
 	return std::make_pair( Future<T>( state ), Promise<T>( state ) );
 }
 
 template <typename T>
-std::pair<SharedFuture<T>, Promise<T>> MakeSharedFuturePromisePair()
+inline std::pair<SharedFuture<T>, Promise<T>> MakeSharedFuturePromisePair()
 {
-	auto state = std::make_shared<MultipleContinuationState<T>>();
+	auto state = std::make_shared<Detail::SharedState<T>>();
 	return std::make_pair( SharedFuture<T>( state ), Promise<T>( state ) );
+}
+
+namespace Detail
+{
+
+template <typename FutureBase, typename Exec, typename Qualifier>
+class BaseContinuableFuture : public FutureBase
+{
+public:
+	using ValueType = typename FutureBase::ValueType;
+	using ExpectedType = typename FutureBase::ExpectedType;
+
+	static_assert( !std::is_reference_v<Exec> );
+
+public:
+	BaseContinuableFuture( std::shared_ptr<SharedState<ValueType>> state, const Exec& exec )
+		: FutureBase( std::move( state ) )
+		, m_executor( exec )
+	{}
+
+	template <typename Function>
+	auto Then( Function&& f ) &&
+	{
+		using R = ContinuationResultType_t<Function, ValueType>;
+
+		auto[ future, promise ] = MakeFuturePromisePair<R>();
+		this->m_state->SetContinuation( BoundContinuation( Qualifier{}, std::move( promise ), m_executor, std::forward<Function>( f ) ) );
+		this->Discard();
+		return std::move( future ).Via( m_executor );
+	}
+
+	template <typename Function>
+	auto Chain( Function&& f ) &&
+	{
+		if constexpr ( IsFuture_v<ValueType> )
+			return std::move( *this ).Unwrap().Via( m_executor ).Then( std::forward<Function>( f ) );
+		else
+			return std::move( *this ).Then( std::forward<Function>( f ) );
+	}
+
+	operator FutureBase() &&
+	{
+		return FutureBase( std::move( this->m_state ) );
+	}
+
+protected:
+	Exec m_executor;
+};
+
+} // namespace Detail
+
+template <typename T, typename Exec>
+class ContinuableFuture : public Detail::BaseContinuableFuture<Future<T>, Exec, Detail::MoveQualifier>
+{
+public:
+	using Detail::BaseContinuableFuture<Future<T>, Exec, Detail::MoveQualifier>::BaseContinuableFuture;
+
+	ContinuableSharedFuture<T, Exec> Share();
+};
+
+template <typename T, typename Exec>
+class ContinuableSharedFuture : public Detail::BaseContinuableFuture<SharedFuture<T>, Exec, Detail::ConstQualifier>
+{
+public:
+	using Detail::BaseContinuableFuture<SharedFuture<T>, Exec, Detail::ConstQualifier>::BaseContinuableFuture;
+};
+
+template <typename T, typename Exec>
+ContinuableSharedFuture<T, Exec> ContinuableFuture<T, Exec>::Share()
+{
+	return ContinuableSharedFuture<T, Exec>( std::move( this->m_state ), this->m_executor );
+}
+
+template <typename T>
+template <typename Exec>
+inline ContinuableFuture<T, Exec> Future<T>::Via( const Exec& executor ) &&
+{
+	return ContinuableFuture<T, Exec>( std::move( this->m_state ), executor );
+}
+
+template <typename T>
+template <typename Exec>
+inline ContinuableSharedFuture<T, Exec> SharedFuture<T>::Via( const Exec& executor ) &&
+{
+	return ContinuableSharedFuture<T, Exec>( std::move( this->m_state ), executor );
 }
 
 // Execution
 
-template <typename Executor, typename Function>
-void Execute( const Executor& exec, Function&& f )
-{
-	exec.Execute( std::forward<Function>( f ) );
-}
-
-template <typename Executor, typename Function>
-auto TwoWayExecute( const Executor& exec, Function&& f )
-{
-	if ( stdx::is_detected_v )
-	return exec.TwoWayExecute( std::forward<Function>( f ) ).Via( exec );
-}
-
-template <typename Executor, typename FutureType, typename Function>
-auto ThenExecute( const Executor& exec, FutureType&& fut, Function&& f )
-{
-	return std::forward<FutureType>( fut ).Via( exec ).Then( std::forward<Function>( f ) );
-}
-
 template <typename Executor, typename Function, typename... Args>
-ContinuableFuture<ContinuationResultOf_t<Function>, Executor> Async( const Executor& exec, Function&& f, Args&&... args )
+inline auto TwoWayExecute( const Executor& exec, Function&& f, Args&&... args )
 {
-	using Result = ContinuationResultOf_t<Function, Args...>;
-	auto[ future, promise ] = MakeFuturePromisePair<Result>();
+	using BindType = decltype( stdx::bind( std::forward<Function>( f ), std::forward<Args>( args )... ) );
 
-	exec.Execute( Task( std::forward<Function>( f ), std::move( promise ) ) );
+	if constexpr ( HasTwoWayExecute_v<Executor, Function&&, Args&&...> )
+	{
+		return exec.TwoWayExecute( std::forward<Function>( f ), std::forward<Args>( args )... ).Via( exec );
+	}
+	else if constexpr ( HasTwoWayExecute_v<Executor, BindType> )
+	{
+		return exec.TwoWayExecute( stdx::bind( std::forward<Function>( f ), std::forward<Args>( args )... ) ).Via( exec );
+	}
+	else
+	{
+		using R = Detail::ContinuationResultType_t<BindType, void>;
 
-	return std::move( future ).Via( exec );
+		auto[ future, promise ] = MakeFuturePromisePair<R>();
+		Execute( exec, Detail::Task( std::move( promise ), stdx::bind( std::forward<Function>( f ), std::forward<Args>( args )... ) ) );
+		return std::move( future ).Via( exec );
+	}
 }
 
-// basic executors
-
-struct InlineExecutor
+template <typename Executor, typename FutureType, typename Function, typename... Args>
+inline auto ThenExecute( const Executor& exec, FutureType fut, Function&& f, Args&&... args )
 {
-	template <typename Function>
-	void Execute( Function&& f ) const
-	{
-		std::invoke( std::forward<Function>( f ) );
-	}
+	return std::move( fut ).Via( exec ).Then( stdx::bind( std::forward<Function>( f ), std::forward<Args>( args )... ) );
+}
 
-	constexpr bool operator==( const InlineExecutor& ) noexcept
-	{
-		return true;
-	}
+template <typename... Futures>
+void WaitAll( Futures&... futures ) noexcept
+{
+	static_assert( std::conjunction_v<IsFuture<std::decay_t<Futures>>...> );
+	( futures.Wait(), ... );
+}
 
-	constexpr bool operator!=( const InlineExecutor& ) noexcept
+template <typename InputIt, std::enable_if_t<IsFuture_v<typename std::iterator_traits<InputIt>::value_type>, int> = 0>
+void WaitAll( InputIt first, InputIt last ) noexcept
+{
+	static_assert( IsFuture_v<typename std::iterator_traits<InputIt>::value_type> );
+	for ( ; first != last; ++first )
+		first->Wait();
+}
+
+/*
+template <typename... Futures>
+using FutureTuple = std::tuple<std::decay_t<Futures>...>;
+
+template <typename InputIt>
+using FutureVector = std::vector<typename std::iterator_traits<InputIt>::value_type>;
+
+template <typename... Futures, STDX_requires( std::conjunction_v<IsFuture<std::decay_t<Futures>>...> )
+Future<FutureTuple<Futures...>> WhenAll( Futures&&... futures )
+{
+	if constexpr ( sizeof...( Futures ) > 0 )
 	{
-		return false;
+
 	}
-};
+	else
+	{
+		return MakeReadyFuture<FutureTuple<Futures...>>();
+	}
+}
+
+template <typename InputIt, STDX_requires( IsFuture_v<typename std::iterator_traits<InputIt>::value_type> )
+Future<FutureVector<InputIt>> WhenAll( InputIt first, InputIt last )
+{
+	dbAssert( std::distance( first, last ) >= 0 );
+
+	if ( first != last )
+	{
+
+	}
+	else
+	{
+		return MakeReadyFuture<FutureVector<InputIt>>();
+	}
+}
+*/
 
 } // namespace Threading
 
-
-
-
-
-
-
-
-
-
+namespace MT
+{
+	using namespace Threading;
+}

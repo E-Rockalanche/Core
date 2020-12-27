@@ -8,11 +8,28 @@ namespace stdx
 {
 
 template <typename E>
+class unexpected;
+
+template <typename T, typename E>
+class expected;
+
+template <typename T>
+struct is_expected : std::false_type {};
+
+template <typename T, typename E>
+struct is_expected<expected<T, E>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_expected_v = is_expected<T>::value;
+
+template <typename E>
 class unexpected
 {
 	static_assert( !std::is_same_v<E, void> );
 
 public:
+	using value_type = E;
+
 	unexpected() = delete;
 
 	constexpr unexpected( const E& val ) : m_value( val ) {}
@@ -42,7 +59,7 @@ constexpr bool operator!=( const unexpected<E>& lhs, const unexpected<E>& rhs )
 
 struct unexpect_t
 {
-	unexpect_t() = default;
+	constexpr unexpect_t() noexcept = default;
 };
 
 inline constexpr unexpect_t unexpect{};
@@ -50,6 +67,8 @@ inline constexpr unexpect_t unexpect{};
 template <typename T, typename E>
 class expected
 {
+	using storage_type = std::variant<T, unexpected<E>>;
+
 public:
 	using value_type = T;
 	using error_type = E;
@@ -62,35 +81,25 @@ public:
 
 	constexpr expected( const expected& ) = default;
 
-	constexpr expected( expected&& other ) noexcept
-	{
-		if ( other.has_value() )
-			m_value = std::move( *other );
-		else
-			m_value = unexpected( std::move( other.error() ) );
-	}
+	constexpr expected( expected&& other ) noexcept = default;
 
 	template <typename U, typename G>
 	explicit constexpr expected( const expected<U, G>& other )
-	{
-		if ( other.has_value() )
-			m_value.emplace<T>( *other );
-		else
-			m_value.emplace<unexpected_type>( other.error() );
-	}
+		: m_value( other.has_value()
+			? storage_type( std::in_place_type<T>, other.value() )
+			: storage_type( std::in_place_type<unexpected_type>, other.error() ) )
+	{}
 
 	template <typename U, typename G>
 	explicit constexpr expected( expected<U, G>&& other )
-	{
-		if ( other.has_value() )
-			m_value.emplace<T>( std::move( *other ) );
-		else
-			m_value.emplace<unexpected_type>( std::move( other ).error() );
-	}
+		: m_value( other.has_value()
+			? storage_type( std::in_place_type<T>, std::move( other ).value() )
+			: storage_type( std::in_place_type<unexpected_type>, std::move( other ).error() ) )
+	{}
 
 	template <typename U = T>
 	explicit constexpr expected( U&& v )
-		: m_value( std::in_place_type<U>, std::forward<U>( v ) )
+		: m_value( std::in_place_type<T>, std::forward<U>( v ) )
 	{}
 
 	template <typename... Args>
@@ -127,39 +136,40 @@ public:
 
 	// assignment
 
-	expected& operator=( const expected& ) = default;
-	expected& operator=( expected&& ) noexcept = default;
+	constexpr expected& operator=( const expected& ) = default;
+	constexpr expected& operator=( expected&& ) noexcept = default;
 
-	template <typename U = T>
-	expected& operator=( U&& v )
+	template <typename U = T,
+		std::enable_if_t<!is_expected_v<U>, int> = 0>
+	constexpr expected& operator=( U&& v )
 	{
 		m_value.emplace<T>( std::forward<U>( v ) );
 		return *this;
 	}
 
 	template <typename G = E>
-	expected& operator=( const unexpected<G>& u )
+	constexpr expected& operator=( const unexpected<G>& u )
 	{
 		m_value.emplace<unexpected_type>( u.value() );
 		return *this;
 	}
 
 	template <typename G = E>
-	expected& operator=( unexpected<G>&& u ) noexcept
+	constexpr expected& operator=( unexpected<G>&& u ) noexcept
 	{
 		m_value.emplace<unexpected_type>( std::move( u ).value() );
 		return *this;
 	}
 
 	template <typename... Args>
-	void emplace( Args&&... args )
+	constexpr void emplace( Args&&... args )
 	{
 		m_value.emplace<T>( std::forward<Args>( args )... );
 		return *this;
 	}
 
 	template <typename U, typename... Args>
-	void emplace( std::initializer_list<U> init, Args&&... args )
+	constexpr void emplace( std::initializer_list<U> init, Args&&... args )
 	{
 		m_value.emplace<T>( init, std::forward<Args>( args )... );
 		return *this;
@@ -167,7 +177,7 @@ public:
 
 	// modifiers
 
-	void swap( expected& other ) noexcept
+	constexpr void swap( expected& other ) noexcept
 	{
 		m_value.swap( other.m_value );
 	}
@@ -267,13 +277,16 @@ public:
 	}
 
 private:
-	std::variant<T, unexpected_type> m_value;
+	storage_type m_value;
 };
 
 template <typename E>
 class expected<void, E>
 {
+	using storage_type = std::optional<unexpected<E>>;
+
 public:
+	using value_type = void;
 	using error_type = E;
 	using unexpected_type = unexpected<E>;
 
@@ -284,25 +297,17 @@ public:
 
 	constexpr expected( const expected& ) = default;
 
-	constexpr expected( expected&& other ) noexcept
-	{
-		if ( !other.has_value() )
-			m_value = unexpected( std::move( other.error() ) );
-	}
+	constexpr expected( expected&& other ) noexcept = default;
 
 	template <typename G>
 	explicit constexpr expected( const expected<void, G>& other )
-	{
-		if ( !other.has_value() )
-			m_value.emplace<unexpected_type>( other.error() );
-	}
+		: m_value( other.has_value() ? storage_type() : storage_type( other.error() ) )
+	{}
 
 	template <typename G>
 	explicit constexpr expected( expected<void, G>&& other )
-	{
-		if ( !other.has_value() )
-			m_value.emplace<unexpected_type>( std::move( other ).error() );
-	}
+		: m_value( other.has_value() ? storage_type() : storage_type( std::move( other ).error() ) )
+	{}
 
 	template <typename G = E>
 	constexpr explicit expected( const unexpected<G>& u )
@@ -328,18 +333,18 @@ public:
 
 	// assignment
 
-	expected& operator=( const expected& ) = default;
-	expected& operator=( expected&& ) noexcept = default;
+	constexpr expected& operator=( const expected& ) = default;
+	constexpr expected& operator=( expected&& ) noexcept = default;
 
 	template <typename G = E>
-	expected& operator=( const unexpected<G>& u )
+	constexpr expected& operator=( const unexpected<G>& u )
 	{
 		m_value.emplace<unexpected_type>( u.value() );
 		return *this;
 	}
 
 	template <typename G = E>
-	expected& operator=( unexpected<G>&& u ) noexcept
+	constexpr expected& operator=( unexpected<G>&& u ) noexcept
 	{
 		m_value.emplace<unexpected_type>( std::move( u ).value() );
 		return *this;
@@ -347,7 +352,7 @@ public:
 
 	// modifiers
 
-	void swap( expected& other ) noexcept
+	constexpr void swap( expected& other ) noexcept
 	{
 		m_value.swap( other.m_value );
 	}
@@ -385,7 +390,7 @@ public:
 	}
 
 private:
-	std::optional<unexpected_type> m_value;
+	storage_type m_value;
 };
 
 // expected relational operators
@@ -472,7 +477,7 @@ namespace std
 {
 
 template <typename T, typename E>
-void swap( stdx::expected<T, E>& lhs, stdx::expected<T, E>& rhs ) noexcept
+constexpr void swap( stdx::expected<T, E>& lhs, stdx::expected<T, E>& rhs ) noexcept
 {
 	lhs.swap( rhs );
 }
