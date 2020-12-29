@@ -24,8 +24,6 @@ public:
 	using UnexpectedType = stdx::unexpected<ErrorType>;
 
 	SharedState() = default;
-	SharedState( const SharedState& ) = delete;
-	SharedState( SharedState&& ) = delete;
 
 	explicit SharedState( const ExpectedType& result ) : m_result( result ) {}
 	explicit SharedState( ExpectedType&& result ) : m_result( std::move( result ) ) {}
@@ -36,10 +34,12 @@ public:
 	template <typename... Args>
 	explicit SharedState( Args&&... args ) : m_result( std::in_place, std::forward<Args>( args )... ) {}
 
+	SharedState( const SharedState& ) = delete;
+	SharedState( SharedState&& ) = delete;
 	SharedState& operator=( const SharedState& ) = delete;
 	SharedState& operator=( SharedState&& ) = delete;
 
-	bool IsReady() const
+	bool IsReady() const noexcept
 	{
 		std::lock_guard lock( m_mutex );
 		return m_result.has_value();
@@ -58,7 +58,7 @@ public:
 		m_condition.notify_all();
 	}
 
-	void Wait() const
+	void Wait() const noexcept
 	{
 		std::unique_lock lock( m_mutex );
 		m_condition.wait( lock, [this] { return m_result.has_value(); } );
@@ -87,6 +87,7 @@ public:
 
 		{
 			std::lock_guard lock( m_mutex );
+
 			m_result = std::forward<E>( result );
 
 			UnsafeNotifyContinuations();

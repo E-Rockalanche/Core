@@ -86,8 +86,7 @@ namespace detail
 	template <typename Tuple, typename Func, std::size_t... Is>
 	void for_each_in_tuple_imp( Tuple& t, Func f, std::index_sequence<Is...> )
 	{
-		auto temp = { ( f( std::get<Is>( t ) ), 0 )... };
-		(void)temp;
+		( ( f( std::get<Is>( t ) ) ), ... );
 	}
 
 } // namespace detail
@@ -95,7 +94,7 @@ namespace detail
 template <typename Func, typename... Ts>
 void for_each_in_tuple( std::tuple<Ts...>& data, Func f )
 {
-	detail::for_each_in_tuple_imp( data, f, std::make_index_sequence<sizeof...( Ts )>{} );
+	detail::for_each_in_tuple_imp( data, f, std::index_sequence_for<Ts...>{} );
 }
 
 } // namespace stdx

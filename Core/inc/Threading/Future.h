@@ -7,6 +7,7 @@
 #include "SharedState.h"
 #include "ThreadPool.h"
 
+#include <stdx/container.h>
 #include <stdx/functional.h>
 
 namespace Threading
@@ -158,6 +159,42 @@ struct AddExecutor<ContinuableSharedFuture<T, OldExecutor>, Executor>
 template <typename T, typename Executor>
 using AddExecutor_t = typename AddExecutor<T, Executor>::type;
 
+template <typename T>
+struct FutureValueType : std::enable_if<IsFuture_v<T>, typename T::ValueType> {};
+
+template <typename T>
+using FutureValueType_t = typename FutureValueType<T>::type;
+
+template <typename T>
+struct IsFutureReference : std::conjunction<IsFuture<std::decay_t<T>>, std::is_reference<T>> {};
+
+template <typename T>
+inline constexpr bool IsFutureReference_v = IsFutureReference<T>::value;
+
+template <typename T>
+struct IsFutureRValue : std::conjunction<IsFuture<std::decay_t<T>>, std::is_rvalue_reference<T>, std::negation<std::is_const<T>>> {};
+
+template <typename T>
+inline constexpr bool IsFutureRValue_v = IsFutureRValue::value;
+
+template <typename T>
+struct IsVoidFuture : std::false_type {};
+
+template<>
+struct IsVoidFuture<Future<void>> : std::true_type {};
+
+template<>
+struct IsVoidFuture<SharedFuture<void>> : std::true_type {};
+
+template <typename Exec>
+struct IsVoidFuture<ContinuableFuture<void, Exec>> : std::true_type {};
+
+template <typename Exec>
+struct IsVoidFuture<ContinuableSharedFuture<void, Exec>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool IsVoidFuture_v = IsVoidFuture<T>::value;
+
 // future implementation
 
 namespace Detail
@@ -197,10 +234,16 @@ public:
 		return m_state != nullptr;
 	}
 
-	void Wait() const
+	void Wait() const noexcept
 	{
 		dbAssert( m_state );
 		m_state->Wait();
+	}
+
+	bool IsReady() const noexcept
+	{
+		dbAssert( m_state );
+		return m_state->IsReady();
 	}
 
 protected:
@@ -461,39 +504,91 @@ void WaitAll( InputIt first, InputIt last ) noexcept
 }
 
 /*
+
 template <typename... Futures>
-using FutureTuple = std::tuple<std::decay_t<Futures>...>;
+using FutureTuple = std::tuple<FutureValueType_t<std::decay_t<Futures>>...>;
 
-template <typename InputIt>
-using FutureVector = std::vector<typename std::iterator_traits<InputIt>::value_type>;
-
-template <typename... Futures, STDX_requires( std::conjunction_v<IsFuture<std::decay_t<Futures>>...> )
-Future<FutureTuple<Futures...>> WhenAll( Futures&&... futures )
+template <typename HeadFuture, typename... TailFutures, STDX_requires( IsFutureReference_v<HeadFuture> && std::conjunction_v<IsFutureReference<TailFutures>...> )
+Future<FutureTuple<HeadFuture, TailFutures...>> WhenAll( HeadFuture&& headFuture, TailFutures&&... tailFutures )
 {
-	if constexpr ( sizeof...( Futures ) > 0 )
-	{
+	static_assert( sizeof...( TailFutures ) > 0 );
+	static_assert( IsFutureRValue_v<HeadFuture&&> && std::conjunction_v<IsFutureRValue<TailFutures&&>...>, "futures must be moved into WhenAll()" );
 
+	WhenAll( std::forward<TailFutures>( tailFutures )... ).Via( InlineExecutor() )
+		.Then( [ headFuture = std::move( headFuture ) ]( FutureTuple<TailFutures...> values )
+			{
+				if constexpr ( IsVoidFuture_v<HeadFuture> )
+					return headFuture.Via( InlineExecutor() ).Then( [ values = std::move( values ) ]()
+						{
+							return std::move( values );
+						} );
+				else
+					return headFuture.Via( InlineExecutor() ).Then( [ values = std::move( values ) ]( FutureValueType_t<HeadFuture> value )
+						{
+							return std::tuple_cat( std::tie( std::move(  value ) ), std::move( values ) );
+						} );
+			} )
+		.Unwrap();
+}
+
+template <typename HeadFuture, STDX_requires( IsFutureReference_v<HeadFuture&&> )
+Future<FutureTuple<HeadFuture>> WhenAll( HeadFuture&& headFuture )
+{
+	static_assert( IsFutureRValue_v<HeadFuture&&>, "futures must be moved into WhenAll()" );
+	if constexpr ( IsVoidFuture_v<HeadFuture> )
+		return headFuture.Via( InlineExecutor() ).Then( []( FutureValueType_t<HeadFuture> value ) { return std::make_tuple( std::move( value ) ); } );
+	else
+		return headFuture.Via( InlineExecutor() ).Then( [] { return std::tuple<>(); } );
+}
+
+Future<std::tuple<>> WhenAll()
+{
+	return MakeReadyFuture<std::tuple<>>();
+}
+
+template <typename Container>
+using FutureVector = std::vector<FutureValueType_t<typename stdx::container_traits<Container>::value_type>>;
+
+template <typename Container>
+Future<FutureVector<Container>> WhenAll( Container&& container )
+{
+	static_assert( std::is_rvalue_reference_v<Container>, "futures must be moved into WhenAll()" );
+
+	if ( !std::empty( container ) )
+	{
+		using ValueType = FutureValueType_t<typename stdx::container_traits<Container>::value_type>;
+
+		auto vectorFuture = std::move( *std::begin( container ) ).Via( InlineExecutor() )
+			.Then( [ initSize = std::size( container ) ]( ValueType value )
+				{
+					FutureVector<Container> results;
+					results.reserve( initSize );
+					results.emplace( std::move( value ) );
+					return results;
+				} );
+
+		for ( auto it = ++std::begin( container ), last = std::end( container ); it != last; ++it )
+		{
+			vectorFuture = std::move( vectorFuture )
+				.Then( [ nextFuture = std::move( *it ) ]( FutureVector<Container> results )
+					{
+						return nextFuture.Via( InlineExecutor() ).Then( [ results = std::move( results ) ]( ValueType value ) mutable
+							{
+								results.emplace_back( std::move( value ) );
+								return std::move( results );
+							} );
+					} )
+				.Unwrap();
+		}
+
+		return vectorFuture;
 	}
 	else
 	{
-		return MakeReadyFuture<FutureTuple<Futures...>>();
+		return MakeReadyFuture<FutureVector<Container>>();
 	}
 }
 
-template <typename InputIt, STDX_requires( IsFuture_v<typename std::iterator_traits<InputIt>::value_type> )
-Future<FutureVector<InputIt>> WhenAll( InputIt first, InputIt last )
-{
-	dbAssert( std::distance( first, last ) >= 0 );
-
-	if ( first != last )
-	{
-
-	}
-	else
-	{
-		return MakeReadyFuture<FutureVector<InputIt>>();
-	}
-}
 */
 
 } // namespace Threading

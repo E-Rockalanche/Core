@@ -232,11 +232,8 @@
     <ClInclude Include="inc\Threading\Continuation.h" />
     <ClInclude Include="inc\Threading\Execution.h" />
     <ClInclude Include="inc\Threading\Future.h" />
-    <ClInclude Include="inc\Threading\Future_old.h" />
     <ClInclude Include="inc\Threading\Promise.h" />
     <ClInclude Include="inc\Threading\SharedState.h" />
-    <ClInclude Include="inc\Threading\SharedState_old.h" />
-    <ClInclude Include="inc\Threading\Task_old.h" />
     <ClInclude Include="inc\Threading\ThreadPool.h" />
     <ClInclude Include="inc\UniqueId.h" />
   </ItemGroup>
