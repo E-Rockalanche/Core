@@ -97,6 +97,37 @@ void for_each_in_tuple( std::tuple<Ts...>& data, Func f )
 	detail::for_each_in_tuple_imp( data, f, std::index_sequence_for<Ts...>{} );
 }
 
+// use to generate values for types in a parameter pack
+template <typename T, typename U>
+decltype( auto ) value_for( U value ) { return value; }
+
+// get type in parameter pack at index N
+template <std::size_t N, typename T0, typename... Ts>
+struct type_at
+{
+	using type = typename type_at<N - 1, Ts...>::type;
+};
+
+template <typename T0, typename... Ts>
+struct type_at<0, T0, Ts...>
+{
+	using type = T0;
+};
+
+template <std::size_t N, typename T0, typename... Ts>
+using type_at_t = typename type_at<N, T0, Ts...>::type;
+
+// class to assign sequential IDs to types at runtime. Can use different specializations to create multiple sets of IDs
+template<typename...>
+class id_family
+{
+	inline static std::size_t counter = 0;
+
+public:
+	template <typename...>
+	inline static const std::size_t id = counter++;
+};
+
 } // namespace stdx
 
 namespace std

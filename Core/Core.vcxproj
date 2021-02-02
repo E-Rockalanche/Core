@@ -153,7 +153,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="inc\ByteIO.h" />
-    <ClInclude Include="inc\Compiler.h" />
     <ClInclude Include="inc\EventSink.h" />
     <ClInclude Include="inc\Inventory\InventoryManager.h" />
     <ClInclude Include="inc\Math\Camera.h" />
@@ -189,6 +188,7 @@
     <ClInclude Include="inc\stdx\array.h" />
     <ClInclude Include="inc\stdx\array2.h" />
     <ClInclude Include="inc\stdx\assert.h" />
+    <ClInclude Include="inc\stdx\compiler.h" />
     <ClInclude Include="inc\stdx\functional.h" />
     <ClInclude Include="inc\stdx\bit.h" />
     <ClInclude Include="inc\stdx\bounded.h" />
@@ -208,11 +208,13 @@
     <ClInclude Include="inc\stdx\iterator.h" />
     <ClInclude Include="inc\stdx\iterator\basic_iterator.h" />
     <ClInclude Include="inc\stdx\iterator\filter_iterator.h" />
+    <ClInclude Include="inc\stdx\iterator\iterator_detail.h" />
     <ClInclude Include="inc\stdx\iterator\zip_iterator.h" />
     <ClInclude Include="inc\stdx\json.h" />
     <ClInclude Include="inc\stdx\math.h" />
     <ClInclude Include="inc\stdx\memory.h" />
     <ClInclude Include="inc\stdx\basic_int.h" />
+    <ClInclude Include="inc\stdx\polymorphic_value.h" />
     <ClInclude Include="inc\stdx\priority_queue.h" />
     <ClInclude Include="inc\stdx\ptr_string.h" />
     <ClInclude Include="inc\stdx\random.h" />
@@ -226,6 +228,7 @@
     <ClInclude Include="inc\stdx\string.h" />
     <ClInclude Include="inc\stdx\thread_pool.h" />
     <ClInclude Include="inc\stdx\type_traits.h" />
+    <ClInclude Include="inc\stdx\unique_id.h" />
     <ClInclude Include="inc\stdx\utility.h" />
     <ClInclude Include="inc\stdx\vector_s.h" />
     <ClInclude Include="inc\stdx\zstring_view.h" />
@@ -235,7 +238,6 @@
     <ClInclude Include="inc\Threading\Promise.h" />
     <ClInclude Include="inc\Threading\SharedState.h" />
     <ClInclude Include="inc\Threading\ThreadPool.h" />
-    <ClInclude Include="inc\UniqueId.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ByteIO.cpp" />

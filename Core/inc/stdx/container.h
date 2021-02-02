@@ -10,10 +10,10 @@ namespace stdx {
 namespace detail
 {
 	template <typename C>
-	using container_pointer_t = decltype( std::data( std::declval<C>() ) );
+	using container_data_t = decltype( std::data( std::declval<C>() ) );
 
 	template <typename C>
-	using container_const_pointer_t = decltype( std::data( std::declval<const C>() ) );
+	using container_const_data_t = decltype( std::data( std::declval<const C>() ) );
 
 	template <typename C>
 	using key_type_t = typename C::key_type;
@@ -36,12 +36,19 @@ public:
 
 	using size_type = decltype( std::size( std::declval<Container>() ) );
 
-	using pointer = stdx::detected_t<detail::container_pointer_t, Container>;
-	using const_pointer = stdx::detected_t<detail::container_const_pointer_t, Container>;
+	using pointer = stdx::detected_t<detail::container_data_t, Container>;
+	using const_pointer = stdx::detected_t<detail::container_const_data_t, Container>;
 
 	using key_type = stdx::detected_t<detail::key_type_t, Container>;
 	using mapped_type = stdx::detected_t<detail::mapped_type_t, Container>;
 };
+
+// get byte size of underlying data array
+template <typename T>
+constexpr auto size_bytes( const T& container ) noexcept
+{
+	return container.size() * sizeof( std::remove_pointer_t<decltype( container.data() )> );
+}
 	
 // quick erasure of elements that does not preserve order
 template <typename Container>
@@ -166,6 +173,15 @@ constexpr void push_back_unique( Container& c, T&& value )
 	auto it = std::find( c.begin(), c.end(), value );
 	if ( it == c.end() )
 		c.push_back( std::forward<T>( value ) );
+}
+
+template <typename Container, typename... T>
+constexpr void emplace_back( Container& c, T&&... args )
+{
+	if constexpr ( std::is_aggregate_v<std::decay_t<T>> )
+		c.push_back( { std::forward<T>( args )... } );
+	else
+		c.emplace_back( std::forward<T>( args )... );
 }
 
 } // namespace stdx

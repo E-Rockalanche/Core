@@ -1,6 +1,8 @@
 #ifndef STDX_TYPE_TRAITS_HPP
 #define STDX_TYPE_TRAITS_HPP
 
+#include <stdx/compiler.h>
+
 #include <iterator>
 #include <type_traits>
 #include <utility>
@@ -55,32 +57,29 @@ inline constexpr std::size_t index_of_v = index_of<T, Ts...>::value;
 
 // use constness of one type on another
 
-template <typename Of, typename On>
-struct use_constness
-{
-	using type = typename std::conditional<std::is_const_v<Of>, std::add_const_t<On>, On>::type;
-};
+template <typename T, typename Qualifier>
+struct constness_as : std::conditional<std::is_const_v<Qualifier>, std::add_const_t<T>, T> {};
 
-template <typename Of, typename On>
-using use_constness_t = typename use_constness<Of, On>::type;
+template <typename T, typename Qualifier>
+using constness_as_t = typename constness_as<T, Qualifier>::type;
 
 template <typename T>
-struct has_no_extents
-{
-	static constexpr bool value = std::is_same_v<std::remove_all_extents_t<T>, T>;
-};
+struct has_no_extents : std::is_same<std::remove_all_extents_t<T>, T> {};
 
 template <typename T>
 inline constexpr bool has_no_extents_v = has_no_extents<T>::value;
 
 template <typename T1, typename T2>
-struct is_same_decayed
-{
-	static constexpr bool value = std::is_same_v<std::decay_t<T1>, std::decay_t<T2>>;
-};
+struct is_same_decayed : std::is_same<std::decay_t<T1>, std::decay_t<T2>> {};
 
 template <typename T1, typename T2>
 inline constexpr bool is_same_decayed_v = is_same_decayed<T1, T2>::value;
+
+template <typename T>
+struct is_decayed : std::is_same<T, std::decay_t<T>> {};
+
+template <typename T>
+inline constexpr bool is_decayed_v = is_decayed<T>::value;
 
 // detection toolkit
 // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4502.pdf
@@ -116,32 +115,38 @@ namespace detail
 
 // determines if Op<Args...> is valid
 template <template<class...> class Op, class... Args>
-using is_detected = typename detail::detector<detail::nonesuch, void, Op, Args...>::value_t;
+struct is_detected : detail::detector<detail::nonesuch, void, Op, Args...>::value_t {};
 
 template <template<class...> class Op, class... Args>
 inline constexpr bool is_detected_v = is_detected<Op, Args...>::value;
 
 // returns type of Op<Args...> if it exists
 template <template<class...> class Op, class... Args>
-using detected_t = typename detail::detector<detail::nonesuch, void, Op, Args...>::type;
+struct detected
+{
+	using type = typename detail::detector<detail::nonesuch, void, Op, Args...>::type;
+};
+
+template <template<class...> class Op, class... Args>
+using detected_t = typename detected<Op, Args...>::type;
 
 // returns type of Op<Args...> if it exists, Default otherwise
 template <class Default, template<class...> class Op, class... Args>
-using detected_or = typename detail::detector<Default, void, Op, Args...>;
+struct detected_or : detail::detector<Default, void, Op, Args...> {};
 
 template <class Default, template<class...> class Op, class... Args>
 using detected_or_t = typename detected_or<Default, Op, Args...>::type;
 
 // returns if Op<Args...> is the same type as Expected
 template <class Expected, template<class...> class Op, class... Args>
-using is_detected_exact = typename std::is_same<Expected, detected_t<Op, Args...>>;
+struct is_detected_exact : std::is_same<Expected, detected_t<Op, Args...>> {};
 
 template <class Expected, template<class...> class Op, class... Args>
 inline constexpr bool is_detected_exact_v = is_detected_exact<Expected, Op, Args...>::value;
 
 // returns if Op<Args...> is convertible to To
 template <class To, template<class...> class Op, class... Args>
-using is_detected_convertible = typename std::is_convertible<detected_t<Op, Args...>, To>;
+struct is_detected_convertible : std::is_convertible<detected_t<Op, Args...>, To> {};
 
 template <class To, template<class...> class Op, class... Args>
 inline constexpr bool is_detected_convertible_v = is_detected_convertible<To, Op, Args...>::value;
@@ -201,6 +206,7 @@ namespace detail
 	template <typename T>
 	using end_t = decltype( std::end( std::declval<T>() ) );
 
+	// TODO: this doesn't look like it works
 	template <typename T>
 	using static_size_t = std::enable_if_t<std::size( std::declval<T>() ) >= 0, void>;
 

@@ -100,9 +100,6 @@
     <ClInclude Include="inc\Math\Vector3.h">
       <Filter>inc\Math</Filter>
     </ClInclude>
-    <ClInclude Include="inc\UniqueId.h">
-      <Filter>inc</Filter>
-    </ClInclude>
     <ClInclude Include="inc\stdx\zstring_view.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
@@ -214,9 +211,6 @@
     <ClInclude Include="inc\stdx\expected.h">
       <Filter>inc\stdx</Filter>
     </ClInclude>
-    <ClInclude Include="inc\Compiler.h">
-      <Filter>inc</Filter>
-    </ClInclude>
     <ClInclude Include="inc\Threading\Promise.h">
       <Filter>inc\Threading</Filter>
     </ClInclude>
@@ -252,6 +246,18 @@
     </ClInclude>
     <ClInclude Include="inc\Threading\Execution.h">
       <Filter>inc\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\unique_id.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\iterator\iterator_detail.h">
+      <Filter>inc\stdx\iterators</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\compiler.h">
+      <Filter>inc\stdx</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\stdx\polymorphic_value.h">
+      <Filter>inc\stdx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

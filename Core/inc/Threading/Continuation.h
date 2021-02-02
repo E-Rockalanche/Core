@@ -70,6 +70,25 @@ private:
 template <typename ErrorFunc>
 OnError( ErrorFunc&& )->OnError<std::decay_t<ErrorFunc>>;
 
+template <typename ExpectedFunc>
+class OnExpected
+{
+public:
+	OnExpected( ExpectedFunc&& f ) : m_onExpected( std::forward<ExpectedFunc>( f ) ) {}
+
+	template <typename E>
+	decltype( auto ) Expected( E&& e )
+	{
+		return m_onExpected( std::forward<E>( e ) );
+	}
+
+private:
+	ExpectedFunc m_onExpected;
+};
+
+template <typename ExpectedFunc>
+OnExpected( ExpectedFunc&& )->OnExpected<std::decay_t<ExpectedFunc>>;
+
 template <typename ValueFunc, typename ErrorFunc>
 class OnValueOrError : public OnValue<ValueFunc>, public OnError<ErrorFunc>
 {
@@ -106,6 +125,9 @@ namespace Detail
 	template <typename T>
 	using OnDoneType = decltype( std::declval<T>().Done() );
 
+	template <typename T, typename E>
+	using OnExpectedType = decltype( std::declval<T>().Expected( std::declval<E>() ) );
+
 	template <typename T, typename Arg>
 	inline constexpr bool HasValueFunc_v = stdx::is_detected_v<Detail::OnValueType, T, Arg>;
 
@@ -114,6 +136,9 @@ namespace Detail
 
 	template <typename T>
 	inline constexpr bool HasDoneFunc_v = stdx::is_detected_v<Detail::OnDoneType, T>;
+
+	template <typename T, typename E>
+	inline constexpr bool HasExpectedFunc_v = stdx::is_detected_v<Detail::OnExpectedType, T, E>;
 
 	template <typename Function, typename T>
 	class BoundReceiver
@@ -130,6 +155,8 @@ namespace Detail
 
 		decltype( auto ) operator()()
 		{
+			if constexpr ( HasExpectedFunc_v<Function&&, T&&> )
+				return std::move( m_function ).Expected( std::move( m_value ) );
 			if constexpr ( HasValueFunc_v<Function&&, T&&> )
 				return std::move( m_function ).Value( std::move( m_value ) );
 			else if constexpr ( HasInvokeOperator_v<Function&&, T&&> )
@@ -158,7 +185,7 @@ namespace Detail
 			if constexpr ( HasDoneFunc_v<Function&&> )
 				return std::move( m_function ).Done();
 			else if constexpr ( HasInvokeOperator_v<Function&&> )
-				return std::move( m_function )( );
+				return std::move( m_function )();
 			else
 				static_assert( false, "function cannot be invoked with no parameters" );
 		}
@@ -176,7 +203,7 @@ namespace Detail
 	template <typename Function, typename ExpectedType>
 	auto BindReceiver( Function&& f, ExpectedType&& expected )
 	{
-		if constexpr ( HasInvokeOperator_v<Function&&, ExpectedType&&> )
+		if constexpr ( HasExpectedFunc_v<Function&&, ExpectedType&&> )
 		{
 			return BoundReceiver( std::forward<Function>( f ), std::forward<ExpectedType>( expected ) );
 		}
@@ -201,6 +228,8 @@ namespace Detail
 	template <typename R, typename Function, typename... Args>
 	void InvokeContinuation( Promise<R> promise, Function&& f, Args&&... args ) noexcept
 	{
+		static_assert( std::is_same_v<R, std::decay_t<std::invoke_result_t<Function&&, Args&&...>>> );
+
 		try
 		{
 			if constexpr ( std::is_void_v<R> )
@@ -233,22 +262,7 @@ namespace Detail
 
 		void operator()() noexcept
 		{
-			try
-			{
-				if constexpr ( std::is_void_v<R> )
-				{
-					m_function();
-					m_promise.SetValue();
-				}
-				else
-				{
-					m_promise.SetValue( m_function() );
-				}
-			}
-			catch ( ... )
-			{
-				m_promise.SetError( std::current_exception() );
-			}
+			InvokeContinuation( m_promise, m_function );
 		}
 
 	private:
@@ -276,7 +290,7 @@ namespace Detail
 		{
 			try
 			{
-				m_function( m_error );
+				std::invoke( m_function, m_error );
 			}
 			catch ( ... )
 			{
@@ -311,7 +325,7 @@ namespace Detail
 		template <typename T>
 		void operator()( Expected<T>& expected )
 		{
-			if constexpr ( HasInvokeOperator_v<Function, std::invoke_result_t<Qualifier, Expected<T>&>> )
+			if constexpr ( HasExpectedFunc_v<Function, Expected<T>&&> )
 			{
 				Execute( this->m_executor, Task( std::move( this->m_promise ), BindReceiver( std::move( this->m_function ), Qualifier{}( expected ) ) ) );
 			}

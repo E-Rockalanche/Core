@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Compiler.h"
+#include <stdx/compiler.h>
 
 #include "Continuation.h"
 #include "Execution.h"
@@ -287,16 +287,16 @@ template <typename U, std::enable_if_t<IsFuture_v<U>, int>>
 auto Future<T>::Unwrap() && -> RemoveExecutor_t<U>
 {
 	auto[ future, promise ] = MakeFuturePromisePair<typename U::ValueType>();
-	std::move( *this ).Via( InlineExecutor() ).Then( [ promise = std::move( promise ) ]( ExpectedType&& expectedFuture ) mutable
+	std::move( *this ).Via( InlineExecutor() ).Then( OnExpected{ [promise = std::move( promise )]( ExpectedType&& expectedFuture ) mutable
 	{
 		if ( expectedFuture.has_value() )
-			std::move( expectedFuture ).value().Then( [ promise = std::move( promise ) ]( typename U::ExpectedType&& expectedValue ) mutable
-		{
-			promise.SetExpected( std::move( expectedValue ) );
-		} );
+			std::move( expectedFuture ).value().Then( OnExpected{ [promise = std::move( promise )]( typename U::ExpectedType&& expectedValue ) mutable
+			{
+				promise.SetExpected( std::move( expectedValue ) );
+			} } );
 		else
 			promise.SetError( std::move( expectedFuture ).error() );
-	} );
+	} }  );
 	return std::move( future );
 }
 
@@ -327,16 +327,16 @@ template <typename U, std::enable_if_t<IsFuture_v<U>, int>>
 auto SharedFuture<T>::Unwrap() && -> RemoveExecutor_t<U>
 {
 	auto[ future, promise ] = MakeFuturePromisePair<typename U::ValueType>();
-	std::move( *this ).Via( InlineExecutor() ).Then( [ promise = std::move( promise ) ]( const ExpectedType& expectedFuture ) mutable
+	std::move( *this ).Via( InlineExecutor() ).Then( OnExpected{ [promise = std::move( promise )]( const ExpectedType& expectedFuture ) mutable
 	{
 		if ( expectedFuture.has_value() )
-			expectedFuture.value().Then( [ promise = std::move( promise ) ]( typename U::ExpectedType&& expectedValue ) mutable
-		{
-			promise.SetExpected( std::move( expectedValue ) );
-		} );
+			expectedFuture.value().Then( OnExpected{ [promise = std::move( promise )]( typename U::ExpectedType&& expectedValue ) mutable
+			{
+				promise.SetExpected( std::move( expectedValue ) );
+			} } );
 		else
 			promise.SetError( expectedFuture.error() );
-	} );
+	} } );
 	return std::move( future );
 }
 

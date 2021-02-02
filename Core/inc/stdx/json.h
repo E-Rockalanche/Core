@@ -54,13 +54,13 @@ namespace detail
 		json_index_reference& operator=( const json_index_reference& ) = delete;
 
 		operator char_type() const { return m_json->str()[ m_index ]; }
-		operator stdx::use_constness_t<Json, char_type>&() const { return m_json->str()[ m_index ]; }
+		operator stdx::constness_as_t<Json, char_type>&() const { return m_json->str()[ m_index ]; }
 
 		operator json_type() const { return m_json->arr()[ m_index ]; }
 		operator Json&() const { return m_json->arr()[ m_index ]; }
 
 		operator pair_type() const { return *( m_json->items().begin() + m_index ); }
-		operator stdx::use_constness_t<Json, pair_type>&() const { return *( m_json->items().begin() + m_index ); }
+		operator stdx::constness_as_t<Json, pair_type>&() const { return *( m_json->items().begin() + m_index ); }
 
 		json_index_reference& operator=( char_type c ) const
 		{

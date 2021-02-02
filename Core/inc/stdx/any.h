@@ -1,47 +1,36 @@
 #pragma once
 
 #include <stdx/assert.h>
-#include <type_traits>
+#include <stdx/type_traits.h>
 
 namespace stdx
 {
 
 namespace detail
 {
-	template <typename T>
-	inline void destroy_in_place( T& obj )
-	{
-		obj.~T();
-	}
-
-	template <typename T, typename... Args>
-	inline void construct_in_place( T& obj, Args&&... args )
-	{
-		new( std::addressof( obj ) ) T( std::forward<Args>( args )... );
-	}
 
 	struct any_small_vtable
 	{
-		using destroy_fn = void( * )( void* );
+		using destroy_fn = void( * )( const void* );
 		using copy_fn = void( * )( void*, const void* );
 		using move_fn = void( * )( void*, void* );
 
 		template <typename T>
-		static void destroy_imp( void* obj )
+		static void destroy_imp( const void* obj )
 		{
-			destroy_in_place( *static_cast<T*>( obj ) );
+			std::destroy_at( static_cast<const T*>( obj ) );
 		}
 
 		template <typename T>
 		static void copy_imp( void* dest, const void* src )
 		{
-			construct_in_place( *static_cast<T*>( dest ), *static_cast<const T*>( src ) );
+			new ( dest ) T( *static_cast<const T*>( src ) );
 		}
 
 		template <typename T>
 		static void move_imp( void* dest, void* src )
 		{
-			construct_in_place( *static_cast<T*>( dest ), std::move( *static_cast<T*>( src ) ) );
+			new ( dest ) T( std::move( *static_cast<T*>( src ) ) );
 		}
 
 		destroy_fn destroy;
@@ -59,19 +48,19 @@ namespace detail
 
 	struct any_big_vtable
 	{
-		using destroy_fn = void( *)( void* );
-		using copy_fn = void( *)( void*, const void* );
+		using destroy_fn = void( * )( const void* );
+		using copy_fn = void( * )( void*, const void* );
 
 		template <typename T>
-		static void destroy_imp( void* obj )
+		static void destroy_imp( const void* obj )
 		{
-			destroy_in_place( *static_cast<T*>( obj ) );
+			std::destroy_at( static_cast<const T*>( obj ) );
 		}
 
 		template <typename T>
-		static void copy_imp( void* dest, const void* src )
+		static void copy_imp( void* dest, const void* other )
 		{
-			construct_in_place( *static_cast<T*>( dest ), *static_cast<const T*>( src ) );
+			new ( dest ) T( *static_cast<const T*>( other ) );
 		}
 
 		destroy_fn destroy;
@@ -87,7 +76,8 @@ namespace detail
 
 	template <typename T>
 	struct in_place_type {};
-}
+
+} // namespace detail
 
 // std::any type with customizable small size buffer
 
@@ -112,12 +102,13 @@ class basic_any
 		empty = 0,
 		trivial = 1,
 		small = 2,
-		big = 3,
-		mask = 0b11
+		big = 3
 	};
 
+	static constexpr uintptr_t rep_mask = 0x3;
+
 public:
-	basic_any() noexcept : m_type{ 0 } {}
+	basic_any() noexcept : m_type { 0 } {}
 
 	basic_any( const basic_any& other )
 	{
@@ -138,13 +129,13 @@ public:
 	template <typename T, typename... Args>
 	explicit basic_any( detail::in_place_type<T>, Args&&... args )
 	{
-		emplace_imp<std::decay_t<T>>( std::forward<Args>( args )... );
+		emplace_imp<T>( std::forward<Args>( args )... );
 	}
 
 	template <typename T, typename U, typename... Args>
 	explicit basic_any( detail::in_place_type<T>, std::initializer_list<U> init, Args&&... args )
 	{
-		emplace_imp<std::decay_t<T>>( init, std::forward<Args>( args )... );
+		emplace_imp<T>( init, std::forward<Args>( args )... );
 	}
 
 	~basic_any() noexcept
@@ -178,7 +169,7 @@ public:
 	T& emplace( Args&&... args )
 	{
 		reset();
-		return emplace_imp<std::decay_t<T>>( std::forward<Args>( args )... );
+		return emplace_imp<T>( std::forward<Args>( args )... );
 	}
 
 	void reset() noexcept
@@ -186,7 +177,8 @@ public:
 		switch ( get_rep() )
 		{
 			case rep::empty:
-			case rep::trivial: break;
+			case rep::trivial:
+				break;
 
 			case rep::small:
 				m_small.vtable->destroy( &m_small.data );
@@ -204,25 +196,22 @@ public:
 		other = std::exchange( *this, std::move( other ) );
 	}
 
-	[[ nodiscard ]] bool has_value() const noexcept
+	[[nodiscard]] bool has_value() const noexcept
 	{
 		return m_type != 0;
 	}
 
-	[[ nodiscard ]] const std::type_info& type() const noexcept
+	[[nodiscard]] const std::type_info& type() const noexcept
 	{
-		const std::type_info* info = get_type();
-		if ( info )
-			return *info;
-		else
-			return ( typeid( void ) );
+		auto* info = get_type();
+		return info ? *info : typeid( void );
 	}
 
 	template <typename T>
 	T* cast()
 	{
-		static_assert( !std::is_same_v<T, void> );
-		static_assert( std::is_same_v<T, std::decay_t<T>> );
+		static_assert( !std::is_void_v<T> );
+		static_assert( stdx::is_decayed_v<T> );
 
 		auto* info = get_type();
 		return ( info && *info == typeid( T ) )
@@ -233,12 +222,12 @@ public:
 	template <typename T>
 	const T* cast() const
 	{
-		static_assert( !std::is_same_v<T, void> );
-		static_assert( std::is_same_v<T, std::decay_t<T>> );
+		static_assert( !std::is_void_v<T> );
+		static_assert( stdx::is_decayed_v<T> );
 
 		auto* info = get_type();
 		return ( info && *info == typeid( T ) )
-			? reinterpret_cast<T*>( get_data() )
+			? reinterpret_cast<const T*>( get_data() )
 			: nullptr;
 	}
 
@@ -248,7 +237,8 @@ private:
 		m_type = other.m_type;
 		switch ( get_rep() )
 		{
-			case rep::empty: break;
+			case rep::empty:
+				break;
 
 			case rep::trivial:
 				m_trivial = other.m_trivial;
@@ -271,7 +261,8 @@ private:
 		m_type = std::exchange( other.m_type, 0 );
 		switch ( get_rep() )
 		{
-			case rep::empty: break;
+			case rep::empty:
+				break;
 
 			case rep::trivial:
 				m_trivial = other.m_trivial;
@@ -292,7 +283,10 @@ private:
 	template <typename T, typename... Args>
 	T& emplace_imp( Args&&... args )
 	{
-		static_assert( std::is_same_v<T, std::decay_t<T>> );
+		dbExpects( !has_value() );
+
+		static_assert( !std::is_void_v<T> );
+		static_assert( stdx::is_decayed_v<T> );
 
 		if constexpr ( any_is_trivial_v<T> )
 		{
@@ -321,50 +315,56 @@ private:
 
 	const rep get_rep() const noexcept
 	{
-		return static_cast<rep>( m_type & static_cast<uintptr_t>( rep::mask ) );
+		return static_cast<rep>( m_type & rep_mask );
 	}
 
 	const std::type_info* get_type() const noexcept
 	{
-		return reinterpret_cast<const std::type_info*>( m_type & ~static_cast<uintptr_t>( rep::mask ) );
+		return reinterpret_cast<const std::type_info*>( m_type & ~rep_mask );
 	}
 
 	void* get_data() noexcept
 	{
 		switch ( get_rep() )
 		{
-			default:
 			case rep::empty: return nullptr;
 			case rep::trivial: return &m_trivial.data;
 			case rep::small: return &m_small.data;
 			case rep::big: return &m_big.data;
 		}
+
+		dbBreak();
+		return nullptr;
 	}
 
 	const void* get_data() const noexcept
 	{
 		switch ( get_rep() )
 		{
-			default:
 			case rep::empty: return nullptr;
 			case rep::trivial: return &m_trivial.data;
 			case rep::small: return &m_small.data;
 			case rep::big: return &m_big.data;
 		}
+
+		dbBreak();
+		return nullptr;
 	}
 
 private:
-	using trivial_storage = std::aligned_storage_t<trivial_size_v, sizeof(void*)>;
+	// align storage types to void* for optimal packing. We use m_dummy to align to max_align_t
+
+	using trivial_storage = std::aligned_storage_t<trivial_size_v, sizeof( void* )>;
 
 	struct small_storage
 	{
-		std::aligned_storage_t<small_size_v, sizeof(void*)> data;
+		std::aligned_storage_t<small_size_v, sizeof( void* )> data;
 		detail::any_small_vtable* vtable;
 	};
 
 	struct big_storage
 	{
-		std::aligned_storage_t<small_size_v - sizeof( void* ), sizeof(void*)> padding; // push active members closer to m_type
+		std::aligned_storage_t<small_size_v - sizeof( void* ), sizeof( void* )> padding; // push active members closer to m_type
 		void* data;
 		detail::any_big_vtable* vtable;
 	};
@@ -403,38 +403,42 @@ basic_any<N> basic_make_any( std::initializer_list<U> init, Args&&... args )
 template <typename T, std::size_t N>
 T* any_cast( basic_any<N>* a )
 {
-	auto* data = a.cast<std::decay_t<T>>();
-	dbAssert( data );
-	return data;
+	return a ? a->cast<T>() : nullptr;
 }
 
 template <typename T, std::size_t N>
 const T* any_cast( const basic_any<N>* a )
 {
-	auto* data = a.cast<std::decay_t<T>>();
-	dbAssert( data );
-	return data;
+	return a ? a->cast<T>() : nullptr;
 }
 
 template <typename T, std::size_t N>
 T any_cast( basic_any<N>& a )
 {
-	auto* data = a.cast<std::decay_t<T>>();
+	auto* value = any_cast<T>( &a );
 	dbAssert( data );
-	return *data;
+	return *value;
 }
 
 template <typename T, std::size_t N>
 T any_cast( const basic_any<N>& a )
 {
-	auto* data = a.cast<std::decay_t<T>>();
+	auto* value = any_cast<T>( &a );
 	dbAssert( data );
-	return *data;
+	return *value;
 }
 
-using any = basic_any<sizeof( void* ) * 2>;
+template <typename T, std::size_t N>
+T any_cast( basic_any<N>&& a )
+{
+	auto* value = any_cast<T>( &a );
+	dbAssert( data );
+	return std::move( *value );
+}
 
-static_assert( sizeof( any ) == sizeof( void* ) * 4 );
+using any = basic_any<sizeof( void* ) * 6>;
+
+static_assert( sizeof( any ) == sizeof( void* ) * 8 );
 
 template <typename T, typename... Args>
 any make_any( Args&&... args )

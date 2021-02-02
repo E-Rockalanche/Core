@@ -2,7 +2,7 @@
 #define STDX_SPAN_HPP
 
 #include <stdx/assert.h>
-#include <stdx/iterator.h>
+#include <stdx/compiler.h>
 
 #include <algorithm>
 #include <array>
@@ -69,10 +69,12 @@ public:
 	using const_pointer = const T*;
 	using reference = T&;
 	using const_reference = const T&;
+
 	using iterator = pointer;
 	using const_iterator = const_pointer;
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
 
 	static constexpr size_type extent = Extent;
 
@@ -82,32 +84,25 @@ public: // construction and assignment
 
 	constexpr span( T* first, size_type count ) noexcept : m_imp{ first, count } {}
 
-	template <typename It,
-		std::enable_if_t<!std::is_integral_v<It>, int> = 0>
+	template <typename It, STDX_requires( !std::is_integral_v<It> )
 	constexpr span( It first, size_type count ) : m_imp{ stdx::to_address( first ), count } {}
 	
-	template <typename It,
-		std::enable_if_t<!std::is_integral_v<It>, int> = 0>
+	template <typename It, STDX_requires( !std::is_integral_v<It> )
 	constexpr span( It first, It last ) : m_imp{ stdx::to_address( first ), static_cast<size_type>( last - first ) } {}
 	
-	template <std::size_t N,
-		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
+	template <std::size_t N, STDX_requires( extent == dynamic_extent || N == extent )
 	constexpr span( element_type( &arr )[ N ] ) noexcept : m_imp{ arr, N } {}
 	
-	template <typename U, std::size_t N,
-		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
+	template <typename U, std::size_t N, STDX_requires( extent == dynamic_extent || N == extent )
 	constexpr span( std::array<U, N>& arr ) noexcept : m_imp{ arr.data(), arr.size() } {}
 	
-	template <typename U, std::size_t N,
-		std::enable_if_t<extent == dynamic_extent || N == extent, int> = 0>
+	template <typename U, std::size_t N, STDX_requires( extent == dynamic_extent || N == extent )
 	constexpr span( const std::array<U, N>& arr ) noexcept : m_imp{ arr.data(), arr.size() } {}
 	
-	template <typename R,
-		std::enable_if_t<extent == dynamic_extent, int> = 0>
+	template <typename R, STDX_requires( extent == dynamic_extent )
 	constexpr span( R&& r ) noexcept : m_imp{ r.data(), r.size() } {}
 	
-	template <typename U, std::size_t N,
-		std::enable_if_t<extent == dynamic_extent || extent == N, int> = 0>
+	template <typename U, std::size_t N, STDX_requires( extent == dynamic_extent || extent == N )
 	constexpr span( const span<U, N>& s ) noexcept : m_imp{ s.data(), s.size() } {}
 	
 	constexpr span( const span& other ) noexcept = default;
@@ -119,14 +114,14 @@ public: // iterators
 	constexpr iterator begin() const noexcept { return m_imp.data; }
 	constexpr iterator end() const noexcept { return m_imp.data + m_imp.size; }
 
-	constexpr const_iterator cbegin() noexcept { return m_imp.data; }
+	constexpr const_iterator cbegin() const noexcept { return m_imp.data; }
 	constexpr const_iterator cend() const noexcept { return m_imp.data + m_imp.size; }
 
-	constexpr reverse_iterator rbegin() const noexcept { return m_imp.data + m_imp.size; }
-	constexpr reverse_iterator rend() const noexcept { return m_imp; }
+	constexpr reverse_iterator rbegin() const noexcept { return end(); }
+	constexpr reverse_iterator rend() const noexcept { return begin(); }
 
-	constexpr const_reverse_iterator crend() const noexcept { return  m_imp.data + m_imp.size; }
-	constexpr const_reverse_iterator crbegin() noexcept { return m_imp; }
+	constexpr const_reverse_iterator crbegin() noexcept { return cend(); }
+	constexpr const_reverse_iterator crend() const noexcept { return cbegin(); }
 
 public: // element access
 
